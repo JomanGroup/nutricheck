@@ -1,0 +1,3030 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NutriCheck · Analizador inteligente de etiquetas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.0.4/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+/* ========================================================================
+   NUTRICHECK · DESIGN SYSTEM
+   ======================================================================== */
+:root {
+  /* Brand palette */
+  --brand-50:  #ecfdf5;
+  --brand-100: #d1fae5;
+  --brand-200: #a7f3d0;
+  --brand-300: #6ee7b7;
+  --brand-400: #34d399;
+  --brand-500: #10b981;
+  --brand-600: #059669;
+  --brand-700: #047857;
+  --brand-800: #065f46;
+  --brand-900: #064e3b;
+
+  /* Neutrals */
+  --ink-900: #0b1117;
+  --ink-800: #131a23;
+  --ink-700: #1d2630;
+  --ink-600: #364152;
+  --ink-500: #5b6776;
+  --ink-400: #8a96a6;
+  --ink-300: #b6becc;
+  --ink-200: #d8dde6;
+  --ink-100: #eaeef4;
+  --ink-50:  #f5f7fb;
+  --paper:   #ffffff;
+
+  /* Semantic */
+  --ok:      #10b981;
+  --ok-bg:   #ecfdf5;
+  --ok-bd:   #a7f3d0;
+  --warn:    #f59e0b;
+  --warn-bg: #fffbeb;
+  --warn-bd: #fde68a;
+  --bad:     #ef4444;
+  --bad-bg:  #fef2f2;
+  --bad-bd:  #fecaca;
+  --info:    #3b82f6;
+  --info-bg: #eff6ff;
+
+  /* Layout */
+  --radius-sm: 8px;
+  --radius:    14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --shadow-xs: 0 1px 2px rgba(11,17,23,.04);
+  --shadow-sm: 0 2px 6px rgba(11,17,23,.06), 0 1px 2px rgba(11,17,23,.04);
+  --shadow:    0 8px 24px rgba(11,17,23,.07), 0 2px 6px rgba(11,17,23,.04);
+  --shadow-lg: 0 24px 48px -12px rgba(11,17,23,.18), 0 8px 16px rgba(11,17,23,.06);
+  --shadow-xl: 0 32px 64px -16px rgba(6,95,70,.22);
+
+  --header-h: 68px;
+  --sidebar-w: 264px;
+
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  color: var(--ink-800);
+  background: var(--ink-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+input, textarea, select { font-family: inherit; color: inherit; }
+input:focus, textarea:focus, select:focus { outline: none; }
+ul { list-style: none; }
+a { color: inherit; text-decoration: none; }
+
+/* ========================================================================
+   APP SHELL
+   ======================================================================== */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: 100vh;
+  min-height: 100vh;
+  background: var(--ink-50);
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  background: linear-gradient(180deg, #0b1117 0%, #0f1822 100%);
+  color: var(--ink-200);
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: -100px; right: -80px;
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(16,185,129,.22), transparent 65%);
+  pointer-events: none;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 4px 6px 24px;
+  position: relative;
+}
+.brand-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--brand-400), var(--brand-600));
+  border-radius: 11px;
+  display: grid; place-items: center;
+  box-shadow: 0 8px 20px rgba(16,185,129,.35);
+}
+.brand-mark svg { width: 22px; height: 22px; color: #fff; }
+.brand-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 19px;
+  color: #fff;
+  letter-spacing: -.02em;
+}
+.brand-text small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--brand-300);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.nav-section-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--ink-500);
+  font-weight: 600;
+  padding: 16px 12px 8px;
+}
+.nav {
+  display: flex; flex-direction: column; gap: 2px;
+  position: relative;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  color: var(--ink-300);
+  font-weight: 500;
+  font-size: 14px;
+  transition: all .18s ease;
+  cursor: pointer;
+  position: relative;
+}
+.nav-item:hover {
+  background: rgba(255,255,255,.04);
+  color: #fff;
+}
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(16,185,129,.18), rgba(16,185,129,.02));
+  color: #fff;
+}
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -18px; top: 8px; bottom: 8px;
+  width: 3px;
+  background: var(--brand-400);
+  border-radius: 0 3px 3px 0;
+}
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; opacity: .9; }
+.nav-badge {
+  margin-left: auto;
+  background: var(--brand-500);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 14px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 14px;
+  position: relative;
+}
+.sidebar-footer .small-title {
+  font-size: 11px;
+  color: var(--brand-300);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 6px;
+}
+.sidebar-footer p {
+  font-size: 12.5px;
+  color: var(--ink-300);
+  line-height: 1.45;
+}
+
+/* ---------- Main area ---------- */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100vh;
+}
+.topbar {
+  height: var(--header-h);
+  background: var(--paper);
+  border-bottom: 1px solid var(--ink-100);
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+  gap: 18px;
+  flex-shrink: 0;
+}
+.topbar-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink-900);
+}
+.topbar-title small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--ink-500);
+  margin-top: 1px;
+}
+.topbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--ink-100);
+  color: var(--ink-700);
+}
+.chip-ok    { background: var(--ok-bg); color: var(--brand-700); }
+.chip-warn  { background: var(--warn-bg); color: #92400e; }
+.chip-bad   { background: var(--bad-bg); color: #991b1b; }
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 32px 60px;
+}
+.view { display: none; animation: viewIn .35s cubic-bezier(.22,.61,.36,1); }
+.view.active { display: block; }
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================================================
+   COMPONENTS
+   ======================================================================== */
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all .18s ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.btn svg { width: 16px; height: 16px; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-600));
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(16,185,129,.28);
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(16,185,129,.36); }
+.btn-primary:active { transform: translateY(0); }
+.btn-ghost {
+  background: var(--paper);
+  color: var(--ink-700);
+  border-color: var(--ink-200);
+}
+.btn-ghost:hover { background: var(--ink-50); border-color: var(--ink-300); }
+.btn-dark {
+  background: var(--ink-900);
+  color: #fff;
+}
+.btn-dark:hover { background: var(--ink-700); }
+.btn-danger {
+  background: var(--bad-bg);
+  color: #991b1b;
+  border-color: var(--bad-bd);
+}
+.btn-danger:hover { background: #fde9e9; }
+.btn-sm { padding: 7px 12px; font-size: 12.5px; border-radius: 8px; }
+.btn:disabled { opacity: .6; cursor: not-allowed; transform: none !important; }
+
+/* Cards */
+.card {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-xs);
+}
+.card-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-900);
+  letter-spacing: -.01em;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 4px;
+}
+.card-subtitle {
+  font-size: 13px;
+  color: var(--ink-500);
+  margin-bottom: 18px;
+}
+
+/* ========================================================================
+   VIEW: INICIO
+   ======================================================================== */
+.hero {
+  background: linear-gradient(135deg, #0b1117 0%, #0f1f1a 100%);
+  border-radius: var(--radius-xl);
+  padding: 40px 44px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -80px;
+  width: 460px; height: 460px;
+  background: radial-gradient(circle, rgba(16,185,129,.32), transparent 60%);
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: -200px; left: -100px;
+  width: 360px; height: 360px;
+  background: radial-gradient(circle, rgba(59,130,246,.18), transparent 65%);
+  pointer-events: none;
+}
+.hero-content { position: relative; z-index: 2; max-width: 640px; }
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16,185,129,.16);
+  color: var(--brand-200);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  margin-bottom: 18px;
+  border: 1px solid rgba(16,185,129,.25);
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -.025em;
+  margin-bottom: 14px;
+}
+.hero h1 span { color: var(--brand-300); }
+.hero p {
+  font-size: 15.5px;
+  color: var(--ink-300);
+  line-height: 1.55;
+  margin-bottom: 26px;
+  max-width: 540px;
+}
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.stat {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  margin-bottom: 12px;
+}
+.stat-icon svg { width: 18px; height: 18px; }
+.stat-icon.ok   { background: var(--ok-bg);   color: var(--ok); }
+.stat-icon.warn { background: var(--warn-bg); color: var(--warn); }
+.stat-icon.bad  { background: var(--bad-bg);  color: var(--bad); }
+.stat-icon.info { background: var(--info-bg); color: var(--info); }
+.stat-label {
+  font-size: 12px;
+  color: var(--ink-500);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink-900);
+  letter-spacing: -.02em;
+  margin-top: 2px;
+}
+
+.grid-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+.recent-list { display: flex; flex-direction: column; gap: 10px; }
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ink-50);
+  cursor: pointer;
+  transition: all .15s ease;
+  border: 1px solid transparent;
+}
+.recent-item:hover { background: var(--paper); border-color: var(--ink-200); box-shadow: var(--shadow-xs); }
+.recent-thumb {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: var(--paper);
+  display: grid; place-items: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.recent-info { flex: 1; min-width: 0; }
+.recent-name { font-weight: 600; font-size: 14px; color: var(--ink-900); }
+.recent-meta { font-size: 12px; color: var(--ink-500); margin-top: 2px; }
+.recent-status {
+  font-size: 11.5px; font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.recent-status.apto { background: var(--ok-bg);   color: var(--brand-700); }
+.recent-status.no   { background: var(--bad-bg);  color: #991b1b; }
+.recent-status.duda { background: var(--warn-bg); color: #92400e; }
+
+.empty-state {
+  padding: 36px 22px;
+  text-align: center;
+  color: var(--ink-500);
+  font-size: 13.5px;
+}
+.empty-state-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: var(--ink-50);
+  display: grid; place-items: center;
+  margin: 0 auto 14px;
+  color: var(--ink-400);
+}
+.empty-state-icon svg { width: 26px; height: 26px; }
+
+/* Tips card */
+.tips { display: flex; flex-direction: column; gap: 11px; }
+.tip {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--brand-50);
+  border-radius: 12px;
+  border: 1px solid var(--brand-100);
+}
+.tip-num {
+  width: 24px; height: 24px;
+  border-radius: 8px;
+  background: var(--brand-500);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.tip-text { font-size: 13px; color: var(--ink-700); line-height: 1.45; }
+
+/* ========================================================================
+   VIEW: PERFIL
+   ======================================================================== */
+.section-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink-900);
+  letter-spacing: -.02em;
+}
+.section-subtitle { font-size: 14px; color: var(--ink-500); margin-top: 4px; }
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.profile-card {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  position: relative;
+}
+.profile-card[data-type="prohibido"] { border-top: 3px solid var(--bad); }
+.profile-card[data-type="permitido"] { border-top: 3px solid var(--ok); }
+.profile-card[data-type="limitado"]  { border-top: 3px solid var(--warn); }
+.profile-card[data-type="trazas"]    { border-top: 3px solid #8b5cf6; }
+
+.profile-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.pc-icon {
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  display: grid; place-items: center;
+}
+.pc-icon svg { width: 16px; height: 16px; }
+.pc-icon.r { background: var(--bad-bg); color: var(--bad); }
+.pc-icon.g { background: var(--ok-bg); color: var(--ok); }
+.pc-icon.y { background: var(--warn-bg); color: var(--warn); }
+.pc-icon.p { background: #f3eafd; color: #8b5cf6; }
+.pc-title { font-weight: 700; font-size: 14.5px; color: var(--ink-900); letter-spacing: -.01em;}
+.pc-sub { font-size: 12px; color: var(--ink-500); margin-top: 1px; }
+.pc-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  background: var(--ink-100);
+  border-radius: 999px;
+  color: var(--ink-700);
+}
+
+.tag-list {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  min-height: 32px;
+  margin-bottom: 12px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--ink-100);
+  color: var(--ink-700);
+  border: 1px solid transparent;
+  cursor: default;
+  animation: tagIn .25s ease;
+}
+@keyframes tagIn { from { opacity: 0; transform: scale(.85);} to {opacity:1; transform:scale(1);} }
+.tag-r { background: var(--bad-bg); color: #991b1b; border-color: var(--bad-bd); }
+.tag-g { background: var(--ok-bg); color: var(--brand-700); border-color: var(--ok-bd); }
+.tag-y { background: var(--warn-bg); color: #92400e; border-color: var(--warn-bd); }
+.tag-p { background: #f3eafd; color: #6d28d9; border-color: #e0d0fa; }
+.tag .x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(0,0,0,.08);
+  font-size: 12px; line-height: 1;
+  margin-left: 2px;
+  transition: background .15s;
+  cursor: pointer;
+}
+.tag .x:hover { background: rgba(0,0,0,.22); }
+
+.add-ing { display: flex; gap: 6px; }
+.input {
+  flex: 1;
+  border: 1px solid var(--ink-200);
+  background: var(--paper);
+  padding: 9px 13px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.input:focus { border-color: var(--brand-400); box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
+.input-icon-wrap { position: relative; }
+.input-icon-wrap .input { padding-left: 38px; }
+.input-icon-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--ink-400); }
+
+/* Switch */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.switch-row .info-text { flex: 1; }
+.switch-row .info-text strong { display: block; font-size: 14px; color: var(--ink-900); margin-bottom: 2px; font-weight: 600;}
+.switch-row .info-text span { font-size: 12.5px; color: var(--ink-500); }
+.switch {
+  position: relative;
+  width: 46px; height: 26px;
+  background: var(--ink-200);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .2s;
+  flex-shrink: 0;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,.18);
+  transition: left .2s;
+}
+.switch.on { background: var(--brand-500); }
+.switch.on::after { left: 23px; }
+
+/* Quick toggles */
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+.preset-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  background: var(--ink-50);
+  border: 1px solid var(--ink-100);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-700);
+  transition: all .15s;
+  cursor: pointer;
+  position: relative;
+  text-align: left;
+}
+.preset-toggle .emoji { font-size: 18px; }
+.preset-toggle:hover { border-color: var(--ink-300); background: var(--paper); }
+.preset-toggle.checked {
+  background: var(--bad-bg);
+  border-color: var(--bad-bd);
+  color: #991b1b;
+}
+.preset-toggle.checked::after {
+  content: '✓';
+  position: absolute;
+  right: 10px; top: 50%;
+  transform: translateY(-50%);
+  font-weight: 700;
+}
+
+/* ========================================================================
+   VIEW: ANALIZAR
+   ======================================================================== */
+.analyze-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 18px;
+}
+
+.dropzone {
+  border: 2px dashed var(--ink-200);
+  border-radius: var(--radius-lg);
+  padding: 36px 24px;
+  text-align: center;
+  background: var(--paper);
+  transition: all .2s;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+.dropzone:hover, .dropzone.drag {
+  border-color: var(--brand-400);
+  background: var(--brand-50);
+}
+.dropzone-icon {
+  width: 60px; height: 60px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-100), var(--brand-200));
+  display: grid; place-items: center;
+  color: var(--brand-700);
+}
+.dropzone-icon svg { width: 28px; height: 28px; }
+.dropzone h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--ink-900);
+  margin-bottom: 6px;
+  letter-spacing: -.01em;
+}
+.dropzone p { font-size: 13.5px; color: var(--ink-500); margin-bottom: 18px; }
+.dropzone-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+
+.preview-wrap {
+  margin-top: 16px;
+  background: var(--ink-900);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: none;
+  position: relative;
+}
+.preview-wrap.show { display: block; }
+.preview-wrap img {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 10px;
+  display: block;
+}
+.preview-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  color: #fff;
+  padding: 0 4px;
+}
+.preview-actions .filename { font-size: 12.5px; color: var(--ink-300); }
+
+.ocr-panel {
+  display: flex; flex-direction: column;
+  min-height: 200px;
+}
+.ocr-panel textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 200px;
+  border: 1px solid var(--ink-200);
+  border-radius: var(--radius);
+  padding: 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  resize: vertical;
+  font-family: 'SFMono-Regular', Menlo, monospace;
+  background: var(--ink-50);
+  transition: border-color .15s, box-shadow .15s;
+}
+.ocr-panel textarea:focus { border-color: var(--brand-400); background: var(--paper); box-shadow: 0 0 0 4px rgba(16,185,129,.1); }
+.ocr-actions {
+  display: flex; gap: 8px; margin-top: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* OCR progress */
+.ocr-progress {
+  display: none;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: var(--info-bg);
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  font-size: 13px;
+  color: #1e40af;
+}
+.ocr-progress.show { display: block; }
+.ocr-progress-bar {
+  height: 4px;
+  background: rgba(59,130,246,.18);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.ocr-progress-fill {
+  height: 100%;
+  background: var(--info);
+  width: 0%;
+  border-radius: 999px;
+  transition: width .25s ease;
+}
+
+/* Test samples */
+.samples {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.sample-btn {
+  text-align: left;
+  padding: 12px 14px;
+  background: var(--ink-50);
+  border: 1px solid var(--ink-100);
+  border-radius: 11px;
+  transition: all .15s;
+  font-size: 13px;
+}
+.sample-btn:hover { background: var(--paper); border-color: var(--brand-300); box-shadow: var(--shadow-xs); transform: translateY(-1px); }
+.sample-btn strong { display: block; color: var(--ink-900); font-size: 13.5px; margin-bottom: 3px; }
+.sample-btn small { color: var(--ink-500); font-size: 11.5px; }
+
+/* ========================================================================
+   VIEW: RESULTADO
+   ======================================================================== */
+.result-shell {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 18px;
+}
+.verdict {
+  border-radius: var(--radius-xl);
+  padding: 30px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.verdict.apto  { background: linear-gradient(135deg, #047857, #0ea672); }
+.verdict.no    { background: linear-gradient(135deg, #b91c1c, #dc2626); }
+.verdict.duda  { background: linear-gradient(135deg, #b45309, #ea8a09); }
+
+.verdict::before {
+  content: '';
+  position: absolute;
+  top: -100px; right: -50px;
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(255,255,255,.16), transparent 60%);
+}
+.verdict-head {
+  display: flex; gap: 18px; align-items: flex-start;
+  margin-bottom: 18px; position: relative;
+}
+.verdict-icon {
+  width: 64px; height: 64px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.18);
+  backdrop-filter: blur(8px);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.verdict-icon svg { width: 32px; height: 32px; }
+.verdict-status {
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  opacity: .85;
+  margin-bottom: 2px;
+}
+.verdict h2 {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1.1;
+}
+.verdict-tagline {
+  font-size: 14.5px;
+  line-height: 1.55;
+  opacity: .9;
+  margin-top: 8px;
+  max-width: 480px;
+}
+
+.findings {
+  position: relative;
+  display: flex; flex-direction: column; gap: 10px;
+  margin-top: 22px;
+}
+.finding {
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.18);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 13px 16px;
+}
+.finding-head {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 600;
+  opacity: .85;
+  margin-bottom: 6px;
+}
+.finding-content { font-size: 14px; line-height: 1.55; }
+.finding-content b { font-weight: 700; }
+.finding-list { margin-top: 6px; padding-left: 16px; }
+.finding-list li { margin-bottom: 4px; font-size: 13.5px; }
+
+.result-side { display: flex; flex-direction: column; gap: 14px; }
+
+.detected-ings {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.det-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.det-ing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid var(--ink-200);
+  background: var(--paper);
+}
+.det-ing.match-r { background: var(--bad-bg);  color: #991b1b; border-color: var(--bad-bd); }
+.det-ing.match-y { background: var(--warn-bg); color: #92400e; border-color: var(--warn-bd); }
+.det-ing.match-p { background: #f3eafd; color: #6d28d9; border-color: #e0d0fa; }
+.det-ing.match-? { background: var(--ink-100); color: var(--ink-700); }
+.det-ing .dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.legend {
+  font-size: 12px; color: var(--ink-500);
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ink-100);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.legend-item .swatch { width: 10px; height: 10px; border-radius: 50%; }
+
+.disclaimer {
+  background: var(--info-bg);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  gap: 11px;
+  font-size: 12.5px;
+  color: #1e40af;
+  line-height: 1.5;
+}
+.disclaimer svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+
+/* ========================================================================
+   VIEW: HISTORIAL
+   ======================================================================== */
+.history-table {
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.history-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 130px 120px 80px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--ink-100);
+  cursor: pointer;
+  transition: background .12s;
+}
+.history-row:hover { background: var(--ink-50); }
+.history-row:last-child { border-bottom: none; }
+.history-row.header {
+  background: var(--ink-50);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-500);
+  font-weight: 600;
+  cursor: default;
+  padding: 12px 18px;
+}
+.history-row.header:hover { background: var(--ink-50); }
+.h-thumb {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  background: var(--ink-100);
+  display: grid; place-items: center;
+  font-size: 18px;
+}
+.h-name { font-weight: 600; color: var(--ink-900); font-size: 14px; }
+.h-snippet { font-size: 12px; color: var(--ink-500); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;}
+.h-date { font-size: 13px; color: var(--ink-500); }
+.h-actions {
+  display: flex; gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.history-row:hover .h-actions { opacity: 1; }
+.icon-btn {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  color: var(--ink-500);
+}
+.icon-btn:hover { background: var(--ink-100); color: var(--ink-800); }
+.icon-btn svg { width: 16px; height: 16px; }
+
+/* ========================================================================
+   TOAST + UTILITIES
+   ======================================================================== */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 1000;
+  pointer-events: none;
+}
+.toast {
+  background: var(--ink-900);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn .35s cubic-bezier(.22,.61,.36,1);
+  pointer-events: auto;
+  max-width: 360px;
+}
+.toast.ok  { background: var(--brand-700); }
+.toast.bad { background: #991b1b; }
+.toast.warn { background: #92400e; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(16px) scale(.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ========================================================================
+   BOTTOM NAV (mobile / tablet)
+   ======================================================================== */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-top: 1px solid var(--ink-100);
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  z-index: 200;
+  box-shadow: 0 -8px 24px rgba(11,17,23,.06);
+  justify-content: space-around;
+  align-items: stretch;
+}
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 4px;
+  color: var(--ink-500);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+  min-height: 52px;
+}
+.bottom-nav-item svg { width: 22px; height: 22px; }
+.bottom-nav-item:active { background: var(--ink-50); }
+.bottom-nav-item.active { color: var(--brand-600); }
+.bottom-nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px; height: 3px;
+  background: var(--brand-500);
+  border-radius: 0 0 4px 4px;
+}
+.bottom-nav-item .bn-badge {
+  position: absolute;
+  top: 4px;
+  left: calc(50% + 8px);
+  background: var(--bad);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ========================================================================
+   RESPONSIVE
+   ======================================================================== */
+
+/* ----- Tablet & below ----- */
+@media (max-width: 1100px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 100vh;
+  }
+  .sidebar { display: none; }
+  .bottom-nav { display: flex; }
+  .content { padding: 22px 22px calc(92px + env(safe-area-inset-bottom)); }
+  .topbar { padding: 0 20px; }
+
+  .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .grid-2, .analyze-grid, .result-shell { grid-template-columns: 1fr; }
+  .profile-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .hero { padding: 32px; }
+  .hero h1 { font-size: 32px; }
+
+  .toast-container { bottom: calc(86px + env(safe-area-inset-bottom)); }
+}
+
+/* ----- Mobile (≤768px) ----- */
+@media (max-width: 768px) {
+  :root { --header-h: 58px; }
+  body { font-size: 14px; }
+
+  .topbar { padding: 0 14px; gap: 8px; }
+  .topbar-title { font-size: 16px; letter-spacing: -.01em; }
+  .topbar-title small { display: none; }
+  .topbar-actions #profileChip { display: none; }
+  .topbar-actions .btn-sm { padding: 8px 10px; }
+  .topbar-actions .btn-sm svg { width: 16px; height: 16px; }
+  .topbar-actions .btn-sm .btn-label { display: none; }
+
+  .content { padding: 16px 14px calc(92px + env(safe-area-inset-bottom)); }
+
+  /* Hero */
+  .hero { padding: 26px 22px; border-radius: 22px; margin-bottom: 18px; }
+  .hero::before { width: 280px; height: 280px; top: -80px; right: -60px; }
+  .hero-eyebrow { font-size: 11px; padding: 5px 10px; margin-bottom: 14px; }
+  .hero h1 { font-size: 24px; line-height: 1.15; margin-bottom: 12px; }
+  .hero h1 br { display: none; }
+  .hero p { font-size: 13.5px; margin-bottom: 20px; }
+  .hero-actions { gap: 8px; }
+  .hero-actions .btn { flex: 1 1 auto; padding: 11px 14px; font-size: 13.5px; }
+
+  /* Stats */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 18px; }
+  .stat { padding: 14px 16px; border-radius: 14px; }
+  .stat-icon { width: 32px; height: 32px; margin-bottom: 10px; }
+  .stat-icon svg { width: 16px; height: 16px; }
+  .stat-label { font-size: 10.5px; }
+  .stat-value { font-size: 22px; }
+
+  /* Section headers & cards */
+  .section-header { margin-bottom: 18px; gap: 10px; }
+  .section-title { font-size: 21px; }
+  .section-subtitle { font-size: 13px; }
+  .card { padding: 18px; border-radius: 18px; }
+  .card-title { font-size: 14.5px; }
+  .card-subtitle { font-size: 12.5px; margin-bottom: 14px; }
+
+  /* Profile */
+  .profile-grid { grid-template-columns: 1fr; gap: 12px; }
+  .profile-card { padding: 18px; border-radius: 16px; }
+  .pc-title { font-size: 14px; }
+  .pc-sub { font-size: 11.5px; }
+  .switch-row { padding: 14px 16px; border-radius: 14px; gap: 12px; }
+  .switch-row .info-text strong { font-size: 13.5px; }
+  .switch-row .info-text span { font-size: 12px; }
+  .preset-grid { grid-template-columns: repeat(2, 1fr); }
+  .preset-toggle { padding: 11px 12px; font-size: 13px; }
+
+  /* Add-ing input row stays inline */
+  .add-ing { gap: 6px; }
+  .add-ing .input { padding: 10px 12px; font-size: 13px; }
+  .add-ing .btn-sm { padding: 8px 12px; }
+
+  /* Analyze view */
+  .dropzone { padding: 26px 18px; border-radius: 16px; }
+  .dropzone-icon { width: 52px; height: 52px; margin-bottom: 12px; }
+  .dropzone-icon svg { width: 24px; height: 24px; }
+  .dropzone h3 { font-size: 15.5px; }
+  .dropzone p { font-size: 13px; margin-bottom: 14px; }
+  .dropzone-actions { gap: 8px; flex-direction: column; }
+  .dropzone-actions .btn { width: 100%; padding: 12px 16px; }
+  .preview-wrap img { max-height: 280px; }
+  .ocr-panel textarea { min-height: 180px; padding: 12px; font-size: 13px; }
+  .ocr-actions { gap: 8px; }
+  .ocr-actions .btn { flex: 1; }
+  .ocr-actions span#charCount { width: 100%; margin: 4px 0 0; text-align: center; }
+  .samples { grid-template-columns: 1fr; gap: 8px; }
+
+  /* Result view */
+  .verdict { padding: 24px 22px; border-radius: 22px; }
+  .verdict-head { gap: 14px; margin-bottom: 14px; }
+  .verdict-icon { width: 54px; height: 54px; border-radius: 14px; }
+  .verdict-icon svg { width: 26px; height: 26px; }
+  .verdict-status { font-size: 10.5px; }
+  .verdict h2 { font-size: 26px; }
+  .verdict-tagline { font-size: 13.5px; }
+  .finding { padding: 12px 14px; }
+  .finding-head { font-size: 11px; }
+  .finding-content { font-size: 13.5px; }
+  .detected-ings { padding: 16px; border-radius: 16px; }
+  .det-ing { font-size: 12px; padding: 5px 10px; }
+
+  /* History as stacked cards */
+  .history-table { border-radius: 16px; }
+  .history-row {
+    grid-template-columns: 48px 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: 4px 12px;
+    padding: 14px 16px;
+    align-items: start;
+  }
+  .history-row.header { display: none; }
+  .history-row .h-thumb { grid-row: 1 / span 3; align-self: center; }
+  .history-row .h-name { grid-column: 2; grid-row: 1; }
+  .history-row .h-snippet { grid-column: 2; grid-row: 2; font-size: 11.5px; }
+  .history-row .h-date {
+    grid-column: 2; grid-row: 3;
+    font-size: 11.5px; margin-top: 2px;
+  }
+  .history-row > :nth-child(4) { /* veredicto chip */
+    grid-column: 3; grid-row: 1 / span 3;
+    align-self: center;
+  }
+  .history-row > :nth-child(5) { display: none; }
+
+  /* Recent items */
+  .recent-item { padding: 11px 12px; }
+  .recent-thumb { width: 40px; height: 40px; font-size: 17px; }
+  .recent-name { font-size: 13.5px; }
+  .recent-meta { font-size: 11.5px; }
+  .recent-status { font-size: 10.5px; padding: 3px 9px; }
+
+  /* Tips */
+  .tip { padding: 11px 13px; }
+  .tip-text { font-size: 12.5px; }
+
+  /* Buttons */
+  .btn { padding: 11px 16px; font-size: 13.5px; }
+  .btn-sm { padding: 8px 12px; font-size: 12.5px; }
+
+  /* Toast */
+  .toast-container {
+    left: 14px; right: 14px; bottom: calc(86px + env(safe-area-inset-bottom));
+    align-items: stretch;
+  }
+  .toast { max-width: none; }
+}
+
+/* ----- Small mobile (≤480px) ----- */
+@media (max-width: 480px) {
+  .content { padding: 14px 12px calc(92px + env(safe-area-inset-bottom)); }
+  .topbar { padding: 0 12px; }
+  .hero { padding: 22px 18px; }
+  .hero h1 { font-size: 22px; }
+  .hero-actions { flex-direction: column; }
+  .hero-actions .btn { width: 100%; }
+  .section-title { font-size: 19px; }
+  .stat-value { font-size: 20px; }
+  .preset-grid { grid-template-columns: 1fr; }
+  .verdict h2 { font-size: 24px; }
+  .verdict-head { flex-direction: row; gap: 12px; }
+  .det-ing { font-size: 11.5px; }
+  .legend { font-size: 11.5px; }
+}
+
+/* ----- Touch tweaks ----- */
+@media (hover: none) and (pointer: coarse) {
+  .recent-item:hover,
+  .sample-btn:hover,
+  .preset-toggle:hover { transform: none; }
+  .btn-primary:hover { transform: none; box-shadow: 0 6px 14px rgba(16,185,129,.28); }
+}
+
+/* Scrollbars */
+.content::-webkit-scrollbar { width: 10px; }
+.content::-webkit-scrollbar-track { background: transparent; }
+.content::-webkit-scrollbar-thumb { background: var(--ink-200); border-radius: 10px; border: 2px solid var(--ink-50); }
+.content::-webkit-scrollbar-thumb:hover { background: var(--ink-300); }
+
+/* ========================================================================
+   AUTH SCREEN (login / signup)
+   ======================================================================== */
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  display: none;
+  background: linear-gradient(135deg, #0b1117 0%, #0f1f1a 100%);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+.auth-screen.show { display: flex; }
+.auth-screen::before {
+  content: '';
+  position: absolute;
+  top: -160px; right: -120px;
+  width: 520px; height: 520px;
+  background: radial-gradient(circle, rgba(16,185,129,.28), transparent 65%);
+  pointer-events: none;
+}
+.auth-screen::after {
+  content: '';
+  position: absolute;
+  bottom: -200px; left: -100px;
+  width: 420px; height: 420px;
+  background: radial-gradient(circle, rgba(59,130,246,.18), transparent 65%);
+  pointer-events: none;
+}
+.auth-card {
+  position: relative;
+  z-index: 2;
+  background: var(--paper);
+  border-radius: 24px;
+  padding: 36px 32px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-xl);
+}
+.auth-brand {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 22px;
+}
+.auth-brand .brand-mark { width: 42px; height: 42px; border-radius: 12px; }
+.auth-brand-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ink-900);
+  letter-spacing: -.02em;
+}
+.auth-brand-text small {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  color: var(--brand-600);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-top: 1px;
+  font-weight: 500;
+}
+.auth-card h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink-900);
+  letter-spacing: -.02em;
+  margin-bottom: 4px;
+}
+.auth-card .auth-sub {
+  font-size: 13.5px;
+  color: var(--ink-500);
+  margin-bottom: 24px;
+}
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-field { display: flex; flex-direction: column; gap: 5px; }
+.auth-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-700);
+  letter-spacing: .02em;
+}
+.auth-field input {
+  border: 1px solid var(--ink-200);
+  background: var(--paper);
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.auth-field input:focus { border-color: var(--brand-400); box-shadow: 0 0 0 4px rgba(16,185,129,.12); }
+.auth-submit {
+  margin-top: 6px;
+  padding: 12px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-600));
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 6px 14px rgba(16,185,129,.28);
+}
+.auth-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(16,185,129,.36); }
+.auth-submit:disabled { opacity: .6; cursor: not-allowed; }
+.auth-msg {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.auth-msg.show { display: block; }
+.auth-msg.error { background: var(--bad-bg); color: #991b1b; border: 1px solid var(--bad-bd); }
+.auth-msg.info  { background: var(--info-bg); color: #1e40af; border: 1px solid #bfdbfe; }
+.auth-msg.ok    { background: var(--ok-bg); color: var(--brand-700); border: 1px solid var(--ok-bd); }
+.auth-toggle {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--ink-100);
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-500);
+}
+.auth-toggle a {
+  color: var(--brand-700);
+  font-weight: 600;
+  cursor: pointer;
+}
+.auth-toggle a:hover { text-decoration: underline; }
+.auth-disclaimer {
+  margin-top: 14px;
+  font-size: 11.5px;
+  color: var(--ink-400);
+  text-align: center;
+  line-height: 1.45;
+}
+
+/* ========================================================================
+   USER BOX (sidebar) + Logout
+   ======================================================================== */
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+.user-box-avatar {
+  width: 32px; height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--brand-400), var(--brand-700));
+  color: #fff;
+  display: grid; place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.user-box-info { flex: 1; min-width: 0; }
+.user-box-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-box-mail {
+  font-size: 11px;
+  color: var(--ink-400);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-box-logout {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  display: grid; place-items: center;
+  color: var(--ink-400);
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.user-box-logout:hover { background: rgba(239,68,68,.18); color: #fca5a5; }
+.user-box-logout svg { width: 16px; height: 16px; }
+
+/* Mobile: tiny user pill in profile view + logout */
+.mobile-user-row {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--paper);
+  border: 1px solid var(--ink-100);
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+.mobile-user-row .user-box-avatar { width: 30px; height: 30px; font-size: 12px; }
+.mobile-user-row .user-box-info .user-box-name { color: var(--ink-900); }
+.mobile-user-row .user-box-info .user-box-mail { color: var(--ink-500); }
+.mobile-user-row .user-box-logout { color: var(--ink-500); }
+.mobile-user-row .user-box-logout:hover { background: var(--bad-bg); color: #991b1b; }
+
+@media (max-width: 1100px) {
+  .mobile-user-row { display: flex; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============================ AUTH SCREEN ============================ -->
+<div class="auth-screen show" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C7 5 5 9 5 12c0 5 3 8 7 8s7-3 7-8c0-3-2-7-7-10z"/><path d="M8.5 14c.5 1.5 2 3 3.5 3"/></svg>
+      </div>
+      <div class="auth-brand-text">
+        NutriCheck
+        <small>Smart Label AI</small>
+      </div>
+    </div>
+
+    <h2 id="authTitle">Inicia sesión</h2>
+    <div class="auth-sub" id="authSubtitle">Accede a tu perfil alimentario y a tu historial de análisis.</div>
+
+    <form class="auth-form" id="authForm" autocomplete="on" onsubmit="return authSubmit(event)">
+      <div class="auth-field">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" autocomplete="email" required placeholder="tu@email.com">
+      </div>
+      <div class="auth-field">
+        <label for="authPassword">Contraseña</label>
+        <input type="password" id="authPassword" autocomplete="current-password" required minlength="6" placeholder="Mínimo 6 caracteres">
+      </div>
+      <button class="auth-submit" type="submit" id="authSubmit">Entrar</button>
+      <div class="auth-msg" id="authMsg"></div>
+    </form>
+
+    <div class="auth-toggle">
+      <span id="authToggleText">¿No tienes cuenta?</span>
+      <a id="authToggleLink" onclick="authToggleMode()">Regístrate</a>
+    </div>
+    <div class="auth-disclaimer">
+      Tus datos se guardan de forma privada y solo tú puedes verlos. NutriCheck no sustituye el consejo de un profesional sanitario.
+    </div>
+  </div>
+</div>
+
+<div class="app" style="display:none">
+  <!-- ============================ SIDEBAR ============================ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C7 5 5 9 5 12c0 5 3 8 7 8s7-3 7-8c0-3-2-7-7-10z"/><path d="M8.5 14c.5 1.5 2 3 3.5 3"/></svg>
+      </div>
+      <div class="brand-text">
+        NutriCheck
+        <small>Smart Label AI</small>
+      </div>
+    </div>
+
+    <div class="nav-section-title">Principal</div>
+    <nav class="nav" id="nav">
+      <div class="nav-item active" data-view="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+        Inicio
+      </div>
+      <div class="nav-item" data-view="analyze">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1-2h8l1 2"/></svg>
+        Analizar etiqueta
+      </div>
+      <div class="nav-item" data-view="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Mi perfil
+      </div>
+      <div class="nav-item" data-view="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        Historial
+        <span class="nav-badge" id="navBadgeHistory">0</span>
+      </div>
+    </nav>
+
+    <div class="nav-section-title">Sistema</div>
+    <nav class="nav">
+      <div class="nav-item" data-view="about">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        Acerca de
+      </div>
+    </nav>
+
+    <div class="user-box" id="userBox" style="display:none">
+      <div class="user-box-avatar" id="userBoxAvatar">·</div>
+      <div class="user-box-info">
+        <div class="user-box-name" id="userBoxName">Usuario</div>
+        <div class="user-box-mail" id="userBoxMail"></div>
+      </div>
+      <button class="user-box-logout" title="Cerrar sesión" onclick="signOut()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="small-title">⚠ Aviso médico</div>
+      <p>Esta herramienta no sustituye el consejo de un profesional sanitario o nutricionista.</p>
+    </div>
+  </aside>
+
+  <!-- ============================ MAIN ============================ -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">
+        Inicio
+        <small id="topbarSub">Resumen y acceso rápido</small>
+      </div>
+      <div class="topbar-actions">
+        <div class="chip chip-ok" id="profileChip">
+          <span class="chip-dot"></span>
+          <span id="profileChipText">Perfil configurado</span>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="goView('analyze')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+          <span class="btn-label">Nuevo análisis</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ============================ VIEW: HOME ============================ -->
+      <section class="view active" id="view-home">
+        <div class="hero">
+          <div class="hero-content">
+            <div class="hero-eyebrow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              IA · OCR · Análisis personalizado
+            </div>
+            <h1>Sabe qué comes <br><span>antes de cada bocado.</span></h1>
+            <p>Sube o fotografía la etiqueta de cualquier alimento. NutriCheck extrae los ingredientes, los compara con tu perfil alimentario y te dice si es <b>apto</b>, <b>no apto</b> o <b>dudoso</b>, con motivos claros.</p>
+            <div class="hero-actions">
+              <button class="btn btn-primary" onclick="goView('analyze')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+                Analizar etiqueta
+              </button>
+              <button class="btn btn-ghost" onclick="goView('profile')" style="background:rgba(255,255,255,.1); color:#fff; border-color:rgba(255,255,255,.18)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Configurar perfil
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-icon info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg></div>
+            <div class="stat-label">Análisis totales</div>
+            <div class="stat-value" id="statTotal">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="stat-label">Aptos</div>
+            <div class="stat-value" id="statApto">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
+            <div class="stat-label">Dudosos</div>
+            <div class="stat-value" id="statDuda">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-icon bad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg></div>
+            <div class="stat-label">No aptos</div>
+            <div class="stat-value" id="statNo">0</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px">
+              <div>
+                <div class="card-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  Análisis recientes
+                </div>
+                <div class="card-subtitle">Tus últimos productos revisados</div>
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="goView('history')">Ver todo</button>
+            </div>
+            <div class="recent-list" id="recentList"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              Cómo usar NutriCheck
+            </div>
+            <div class="card-subtitle">Sigue estos pasos para análisis precisos</div>
+            <div class="tips">
+              <div class="tip"><div class="tip-num">1</div><div class="tip-text"><b>Configura tu perfil:</b> añade los ingredientes que no toleras, los limitados y si permites o no trazas.</div></div>
+              <div class="tip"><div class="tip-num">2</div><div class="tip-text"><b>Captura la etiqueta:</b> sube una foto nítida y bien iluminada de la lista de ingredientes.</div></div>
+              <div class="tip"><div class="tip-num">3</div><div class="tip-text"><b>Revisa el OCR:</b> corrige el texto detectado si fuera necesario antes de analizar.</div></div>
+              <div class="tip"><div class="tip-num">4</div><div class="tip-text"><b>Lee el resultado:</b> verde, ámbar o rojo, con motivos detallados de cada decisión.</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ VIEW: PROFILE ============================ -->
+      <section class="view" id="view-profile">
+        <!-- Mobile-only: user info + logout (la sidebar se oculta en móvil) -->
+        <div class="mobile-user-row" id="mobileUserRow">
+          <div class="user-box-avatar" id="mobileUserAvatar">·</div>
+          <div class="user-box-info">
+            <div class="user-box-name" id="mobileUserName">Usuario</div>
+            <div class="user-box-mail" id="mobileUserMail"></div>
+          </div>
+          <button class="user-box-logout" title="Cerrar sesión" onclick="signOut()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          </button>
+        </div>
+
+        <div class="section-header">
+          <div>
+            <div class="section-title">Mi perfil alimentario</div>
+            <div class="section-subtitle">Define qué ingredientes evitar, cuáles puedes consumir y cómo tratamos las trazas. Tu perfil es la base de todo análisis.</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="resetProfile()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.7-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.7 6L3 16"/><path d="M3 21v-5h5"/></svg>
+            Restablecer
+          </button>
+        </div>
+
+        <div class="switch-row">
+          <div class="info-text">
+            <strong>¿Permitir trazas en general?</strong>
+            <span>Si está desactivado, cualquier mención a "puede contener trazas de…" un ingrediente prohibido marcará el producto como NO APTO.</span>
+          </div>
+          <div class="switch" id="switchTrazas" onclick="toggleTrazas()"></div>
+        </div>
+
+        <div class="profile-grid">
+          <!-- Prohibidos -->
+          <div class="profile-card" data-type="prohibido">
+            <div class="profile-card-head">
+              <div class="pc-icon r">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+              </div>
+              <div>
+                <div class="pc-title">No puedo tomar</div>
+                <div class="pc-sub">Ingredientes prohibidos (alergias, intolerancias…)</div>
+              </div>
+              <div class="pc-count" id="cntProhibido">0</div>
+            </div>
+            <div class="tag-list" id="listProhibido"></div>
+            <div class="add-ing">
+              <input class="input" placeholder="ej. lactosa, gluten, frutos secos…" data-target="prohibido" onkeydown="if(event.key==='Enter') addIng('prohibido', this)">
+              <button class="btn btn-dark btn-sm" onclick="addIng('prohibido', this.previousElementSibling)">Añadir</button>
+            </div>
+          </div>
+
+          <!-- Permitidos -->
+          <div class="profile-card" data-type="permitido">
+            <div class="profile-card-head">
+              <div class="pc-icon g">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+              <div>
+                <div class="pc-title">Sí puedo tomar</div>
+                <div class="pc-sub">Confirmados seguros (sobrescribe sinónimos genéricos)</div>
+              </div>
+              <div class="pc-count" id="cntPermitido">0</div>
+            </div>
+            <div class="tag-list" id="listPermitido"></div>
+            <div class="add-ing">
+              <input class="input" placeholder="ej. avena sin gluten certificada…" data-target="permitido" onkeydown="if(event.key==='Enter') addIng('permitido', this)">
+              <button class="btn btn-dark btn-sm" onclick="addIng('permitido', this.previousElementSibling)">Añadir</button>
+            </div>
+          </div>
+
+          <!-- Limitados -->
+          <div class="profile-card" data-type="limitado">
+            <div class="profile-card-head">
+              <div class="pc-icon y">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+              </div>
+              <div>
+                <div class="pc-title">Solo en pequeña cantidad</div>
+                <div class="pc-sub">Tolerados en bajo porcentaje (genera advertencia)</div>
+              </div>
+              <div class="pc-count" id="cntLimitado">0</div>
+            </div>
+            <div class="tag-list" id="listLimitado"></div>
+            <div class="add-ing">
+              <input class="input" placeholder="ej. azúcar, sal, cafeína…" data-target="limitado" onkeydown="if(event.key==='Enter') addIng('limitado', this)">
+              <button class="btn btn-dark btn-sm" onclick="addIng('limitado', this.previousElementSibling)">Añadir</button>
+            </div>
+          </div>
+
+          <!-- Solo trazas -->
+          <div class="profile-card" data-type="trazas">
+            <div class="profile-card-head">
+              <div class="pc-icon p">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+              </div>
+              <div>
+                <div class="pc-title">Permitidos solo como trazas</div>
+                <div class="pc-sub">Si aparecen como ingrediente principal: NO APTO</div>
+              </div>
+              <div class="pc-count" id="cntSoloTrazas">0</div>
+            </div>
+            <div class="tag-list" id="listSoloTrazas"></div>
+            <div class="add-ing">
+              <input class="input" placeholder="ej. soja, sésamo, mostaza…" data-target="soloTrazas" onkeydown="if(event.key==='Enter') addIng('soloTrazas', this)">
+              <button class="btn btn-dark btn-sm" onclick="addIng('soloTrazas', this.previousElementSibling)">Añadir</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:6px">
+          <div class="card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Alérgenos y categorías comunes
+          </div>
+          <div class="card-subtitle">Activa para añadirlos automáticamente como prohibidos en tu perfil.</div>
+          <div class="preset-grid" id="presetGrid"></div>
+        </div>
+      </section>
+
+      <!-- ============================ VIEW: ANALYZE ============================ -->
+      <section class="view" id="view-analyze">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Analizar etiqueta</div>
+            <div class="section-subtitle">Sube una foto o pega el texto de la lista de ingredientes. Revisa el OCR si hace falta y lanza el análisis.</div>
+          </div>
+        </div>
+
+        <div class="analyze-grid">
+          <!-- Left: capture -->
+          <div class="card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+              1 · Captura o sube la imagen
+            </div>
+            <div class="card-subtitle">Una buena iluminación y enfoque mejoran mucho el OCR.</div>
+
+            <div class="dropzone" id="dropzone">
+              <div class="dropzone-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+              </div>
+              <h3>Arrastra una imagen aquí</h3>
+              <p>O elige una opción a continuación · JPG, PNG, WebP</p>
+              <div class="dropzone-actions">
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                  Subir imagen
+                </button>
+                <button class="btn btn-ghost" onclick="document.getElementById('cameraInput').click()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1-2h8l1 2"/></svg>
+                  Hacer foto
+                </button>
+              </div>
+              <input type="file" id="fileInput" accept="image/*" hidden>
+              <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+            </div>
+
+            <div class="preview-wrap" id="previewWrap">
+              <img id="previewImg" alt="Preview">
+              <div class="preview-actions">
+                <div class="filename" id="previewName">imagen.jpg</div>
+                <button class="btn btn-ghost btn-sm" style="background:rgba(255,255,255,.08); color:#fff; border-color:rgba(255,255,255,.18)" onclick="clearImage()">Quitar</button>
+              </div>
+            </div>
+
+            <div class="ocr-progress" id="ocrProgress">
+              <div id="ocrProgressText">Inicializando OCR…</div>
+              <div class="ocr-progress-bar"><div class="ocr-progress-fill" id="ocrProgressFill"></div></div>
+            </div>
+
+            <div style="margin-top:18px">
+              <div class="card-subtitle" style="margin:0 0 8px"><b>O prueba con un ejemplo:</b></div>
+              <div class="samples" id="samplesGrid"></div>
+            </div>
+          </div>
+
+          <!-- Right: OCR / Text -->
+          <div class="card ocr-panel">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16M4 9h16M4 14h10M4 19h7"/></svg>
+              2 · Texto de ingredientes
+            </div>
+            <div class="card-subtitle">Revísalo y corrígelo si el OCR no fue perfecto.</div>
+            <textarea id="ocrText" placeholder="El texto detectado aparecerá aquí. También puedes pegarlo directamente.
+&#10;&#10;Ejemplo:
+&#10;Ingredientes: harina de TRIGO, azúcar, aceite de palma, LECHE en polvo, lecitina de SOJA, sal, aromas. Puede contener trazas de FRUTOS SECOS y HUEVO."></textarea>
+            <div class="ocr-actions">
+              <button class="btn btn-primary" id="btnAnalyze" onclick="runAnalysis()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                Analizar
+              </button>
+              <button class="btn btn-ghost" onclick="document.getElementById('ocrText').value=''">Limpiar</button>
+              <span style="font-size:12px; color:var(--ink-500); margin-left:auto" id="charCount">0 caracteres</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ VIEW: RESULT ============================ -->
+      <section class="view" id="view-result">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Resultado del análisis</div>
+            <div class="section-subtitle" id="resultSubtitle">Decisión basada en tu perfil alimentario actual.</div>
+          </div>
+          <div style="display:flex; gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="goView('analyze')">Nuevo análisis</button>
+            <button class="btn btn-dark btn-sm" onclick="goView('history')">Ver historial</button>
+          </div>
+        </div>
+
+        <div class="result-shell" id="resultShell">
+          <!-- Filled dynamically -->
+        </div>
+      </section>
+
+      <!-- ============================ VIEW: HISTORY ============================ -->
+      <section class="view" id="view-history">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Historial de análisis</div>
+            <div class="section-subtitle">Todos los productos que has analizado, con su veredicto y motivos.</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="clearHistory()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+            Vaciar
+          </button>
+        </div>
+        <div class="history-table" id="historyTable">
+          <div class="history-row header">
+            <div></div>
+            <div>Producto / Ingredientes</div>
+            <div>Fecha</div>
+            <div>Veredicto</div>
+            <div></div>
+          </div>
+          <div id="historyBody"></div>
+        </div>
+      </section>
+
+      <!-- ============================ VIEW: ABOUT ============================ -->
+      <section class="view" id="view-about">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Acerca de NutriCheck</div>
+            <div class="section-subtitle">Una herramienta de apoyo, nunca un sustituto del consejo profesional.</div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+              Cómo funciona
+            </div>
+            <div class="card-subtitle" style="margin-bottom:0">
+              NutriCheck utiliza OCR (Tesseract.js) para extraer texto de la imagen y un motor léxico con diccionarios de sinónimos y derivados (lácteos, gluten, frutos secos, sulfitos, aditivos E-…) para comparar con tu perfil. El veredicto siempre se justifica con el motivo exacto.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+              Limitaciones importantes
+            </div>
+            <div class="card-subtitle" style="margin-bottom:0">
+              El OCR puede equivocarse con etiquetas en mal estado. NutriCheck nunca afirma "APTO" sin reservas si hay ambigüedad: marcará "DUDOSO". <b>Esta app no sustituye el consejo médico, alergológico o nutricional profesional.</b>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ============================ BOTTOM NAV (mobile) ============================ -->
+  <nav class="bottom-nav" id="bottomNav">
+    <div class="bottom-nav-item active" data-view="home" onclick="goView('home')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
+      Inicio
+    </div>
+    <div class="bottom-nav-item" data-view="analyze" onclick="goView('analyze')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M7 5l1-2h8l1 2"/></svg>
+      Analizar
+    </div>
+    <div class="bottom-nav-item" data-view="profile" onclick="goView('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Perfil
+    </div>
+    <div class="bottom-nav-item" data-view="history" onclick="goView('history')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Historial
+      <span class="bn-badge" id="bnBadge" style="display:none">0</span>
+    </div>
+  </nav>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ============================================================================
+   NUTRICHECK · CORE
+   ============================================================================ */
+
+/* ============================================================================
+   SUPABASE CONFIG  ⚠  Rellena estas dos constantes con los datos de tu proyecto.
+   Supabase Dashboard → Project Settings → API → Project URL / anon public key.
+   La anon key es segura para frontend: RLS la protege.
+   ============================================================================ */
+const SUPABASE_URL      = 'https://rltazgdmshypidenikeo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsdGF6Z2Rtc2h5cGlkZW5pa2VvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NDAyMjgsImV4cCI6MjA5NzExNjIyOH0.6P7gXjgY5obWqhRLBsHpbjAcZS3_PzWX0aIBTP__iLU';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+let saveProfileTimer = null;
+
+/* ============================================================================
+   AUTH
+   ============================================================================ */
+let authMode = 'signin'; // 'signin' | 'signup'
+
+function authToggleMode() {
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  document.getElementById('authTitle').textContent = authMode === 'signin' ? 'Inicia sesión' : 'Crea tu cuenta';
+  document.getElementById('authSubtitle').textContent = authMode === 'signin'
+    ? 'Accede a tu perfil alimentario y a tu historial de análisis.'
+    : 'Crea tu cuenta para guardar tu perfil y consultarlo desde cualquier dispositivo.';
+  document.getElementById('authSubmit').textContent = authMode === 'signin' ? 'Entrar' : 'Crear cuenta';
+  document.getElementById('authToggleText').textContent = authMode === 'signin' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?';
+  document.getElementById('authToggleLink').textContent = authMode === 'signin' ? 'Regístrate' : 'Inicia sesión';
+  document.getElementById('authPassword').setAttribute('autocomplete', authMode === 'signin' ? 'current-password' : 'new-password');
+  setAuthMsg('', '');
+}
+function setAuthMsg(text, kind) {
+  const el = document.getElementById('authMsg');
+  el.className = 'auth-msg' + (kind ? ' ' + kind : '');
+  el.textContent = text;
+  if (text) el.classList.add('show');
+}
+async function authSubmit(ev) {
+  ev.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const btn = document.getElementById('authSubmit');
+  if (!email || !password) return false;
+  btn.disabled = true;
+  setAuthMsg('', '');
+  try {
+    if (authMode === 'signin') {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+      if (!data.session) {
+        setAuthMsg(`Hemos enviado un email de confirmación a ${email}. Revisa tu bandeja (y la carpeta de spam) y vuelve aquí.`, 'info');
+      }
+    }
+  } catch (e) {
+    setAuthMsg(prettyAuthError(e), 'error');
+  } finally {
+    btn.disabled = false;
+  }
+  return false;
+}
+function prettyAuthError(e) {
+  const m = (e && e.message) || 'Error desconocido';
+  if (/invalid login credentials/i.test(m)) return 'Email o contraseña incorrectos.';
+  if (/user already registered/i.test(m)) return 'Este email ya está registrado. Inicia sesión.';
+  if (/email rate limit/i.test(m)) return 'Demasiados intentos. Espera unos minutos y vuelve a probar.';
+  if (/password should be at least/i.test(m)) return 'La contraseña debe tener al menos 6 caracteres.';
+  if (/email not confirmed/i.test(m)) return 'Tienes que confirmar tu email antes de entrar. Revisa tu bandeja.';
+  return m;
+}
+async function signOut() {
+  await sb.auth.signOut();
+}
+function showAuthScreen() {
+  document.getElementById('authScreen').classList.add('show');
+  document.querySelector('.app').style.display = 'none';
+  document.getElementById('authMsg').className = 'auth-msg';
+  document.getElementById('authForm').reset();
+}
+function hideAuthScreen() {
+  document.getElementById('authScreen').classList.remove('show');
+  document.querySelector('.app').style.display = '';
+}
+function updateUserBox(user) {
+  const email = user.email || '';
+  const initial = (email[0] || '?').toUpperCase();
+  const name = email.split('@')[0];
+  ['userBox','mobileUserRow'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+  ['userBoxAvatar','mobileUserAvatar'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = initial; });
+  ['userBoxName','mobileUserName'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = name; });
+  ['userBoxMail','mobileUserMail'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = email; });
+}
+
+/* ============================================================================
+   DB LAYER
+   ============================================================================ */
+function defaultProfile() {
+  return {
+    prohibido: ['lactosa','gluten','frutos secos'],
+    permitido: [],
+    limitado: ['azúcar'],
+    soloTrazas: [],
+    permitirTrazas: false
+  };
+}
+
+const db = {
+  async loadProfile() {
+    const { data, error } = await sb.from('profiles').select('data').eq('id', currentUser.id).maybeSingle();
+    if (error) throw error;
+    return data ? data.data : null;
+  },
+  async ensureProfile() {
+    let p = await this.loadProfile();
+    if (!p) {
+      p = defaultProfile();
+      const { error } = await sb.from('profiles').insert({ id: currentUser.id, data: p });
+      if (error) throw error;
+    }
+    return p;
+  },
+  saveProfile() {
+    if (saveProfileTimer) clearTimeout(saveProfileTimer);
+    saveProfileTimer = setTimeout(async () => {
+      if (!currentUser) return;
+      const { error } = await sb.from('profiles').update({
+        data: state.profile,
+        updated_at: new Date().toISOString()
+      }).eq('id', currentUser.id);
+      if (error) {
+        console.error(error);
+        toast('Error al guardar el perfil', 'bad');
+      }
+    }, 400);
+  },
+  async loadHistory() {
+    const { data, error } = await sb.from('analyses')
+      .select('id,text,result,created_at')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw error;
+    return (data || []).map(r => ({ id: r.id, text: r.text, image: null, result: r.result, date: r.created_at }));
+  },
+  async insertAnalysis(item) {
+    const { data, error } = await sb.from('analyses').insert({
+      user_id: currentUser.id,
+      text: item.text,
+      result: item.result
+    }).select('id,created_at').single();
+    if (error) throw error;
+    return { id: data.id, date: data.created_at };
+  },
+  async deleteAnalysis(id) {
+    const { error } = await sb.from('analyses').delete().eq('id', id);
+    if (error) throw error;
+  },
+  async clearAnalyses() {
+    const { error } = await sb.from('analyses').delete().eq('user_id', currentUser.id);
+    if (error) throw error;
+  }
+};
+
+/* ============================================================================
+   BOOT / SESSION
+   ============================================================================ */
+async function bootApp(session) {
+  currentUser = session.user;
+  hideAuthScreen();
+  updateUserBox(currentUser);
+  try {
+    state.profile = await db.ensureProfile();
+    state.history = await db.loadHistory();
+  } catch (e) {
+    console.error(e);
+    toast('Error al cargar tus datos. Revisa tu conexión.', 'bad');
+    state.profile = defaultProfile();
+    state.history = [];
+  }
+  renderProfile();
+  updateStats();
+}
+
+// ----- Synonym & derivative dictionary -----
+// Each category contains canonical name + list of substrings to match
+const ALLERGEN_DICT = {
+  gluten:      { label: 'Gluten',       emoji: '🌾', terms: ['gluten','trigo','wheat','espelta','kamut','cebada','centeno','triticale','malta','sémola','semola','harina de trigo','sémola de trigo','espeltrigo','seitan','seitán','bulgur','cuscus','cuscús','couscous'] },
+  lacteos:     { label: 'Leche y lácteos', emoji: '🥛', terms: ['leche','lactosa','lactosuero','suero lácteo','suero lacteo','caseína','caseina','caseinato','lactoalbúmina','lactoalbumina','mantequilla','manteca','nata','crema de leche','queso','requesón','requeson','cuajada','yogur','yogurt','kéfir','kefir','ghee','milk','butter','cheese','whey'] },
+  frutosSecos: { label: 'Frutos secos', emoji: '🥜', terms: ['fruto seco','frutos secos','almendra','avellana','nuez','nueces','anacardo','pistacho','pecana','macadamia','castaña','castaña de cajú','nuez de brasil','nuez del brasil','nut','almond','walnut','hazelnut','cashew','pecan'] },
+  soja:        { label: 'Soja',         emoji: '🫘', terms: ['soja','soya','lecitina de soja','proteína de soja','proteina de soja','tofu','tempeh','edamame','salsa de soja','tamari','miso','soy','e322 (soja)'] },
+  huevo:       { label: 'Huevo',        emoji: '🥚', terms: ['huevo','clara de huevo','yema de huevo','albúmina','albumina','ovoalbúmina','ovoalbumina','ovomucina','ovomucoide','lisozima','lecitina (e322) de huevo','egg','albumin'] },
+  sulfitos:    { label: 'Sulfitos',     emoji: '🍷', terms: ['sulfito','sulfitos','metabisulfito','bisulfito','dióxido de azufre','dioxido de azufre','anhídrido sulfuroso','anhidrido sulfuroso','e220','e221','e222','e223','e224','e225','e226','e227','e228'] },
+  cacahuete:   { label: 'Cacahuete',    emoji: '🥜', terms: ['cacahuete','cacahuetes','maní','mani','aceite de cacahuete','manteca de cacahuete','peanut','arachis'] },
+  marisco:     { label: 'Marisco / Crustáceos', emoji: '🦐', terms: ['marisco','crustáceo','crustaceo','gamba','gambas','langostino','camarón','camaron','cangrejo','bogavante','langosta','cigala','nécora','necora','centollo','mejillón','mejillon','almeja','berberecho','calamar','pulpo','sepia','molusco','shrimp','prawn','crab'] },
+  pescado:     { label: 'Pescado',      emoji: '🐟', terms: ['pescado','atún','atun','salmón','salmon','bacalao','merluza','anchoa','sardina','boquerón','boqueron','caballa','anchoas','sardinas','aceite de pescado','fish'] },
+  sesamo:      { label: 'Sésamo',       emoji: '🌱', terms: ['sésamo','sesamo','tahini','tahine','semilla de sésamo','sesame'] },
+  mostaza:     { label: 'Mostaza',      emoji: '🌭', terms: ['mostaza','mustard','semilla de mostaza'] },
+  apio:        { label: 'Apio',         emoji: '🌿', terms: ['apio','celery'] },
+  altramuces:  { label: 'Altramuces',   emoji: '🫛', terms: ['altramuz','altramuces','lupino','lupin'] },
+  aditivosE:   { label: 'Aditivos E-…', emoji: '🧪', terms: ['e1','e2','e3','e4','e5','e6','e9'] /* matched specially */ }
+};
+
+// Default ingredient list for quick preset toggles (subset shown in UI)
+const PRESETS = ['gluten','lacteos','frutosSecos','soja','huevo','sulfitos','cacahuete','marisco','sesamo','mostaza','apio'];
+
+// ----- State (in-memory) -----
+const state = {
+  profile: {
+    prohibido:   ['lactosa', 'gluten', 'frutos secos'],
+    permitido:   [],
+    limitado:    ['azúcar'],
+    soloTrazas:  [],
+    permitirTrazas: false
+  },
+  history: [],
+  current: null,   // current image data URL
+  lastResult: null
+};
+
+// Sample texts for testing
+const SAMPLES = [
+  {
+    name: 'Galletas de chocolate',
+    emoji: '🍪',
+    summary: 'Contiene trigo, leche, soja',
+    text: 'Ingredientes: harina de TRIGO 42%, azúcar, aceite de palma, cacao en polvo 8%, jarabe de glucosa, LECHE en polvo desnatada, lecitina de SOJA (E322), gasificantes (E500, E503), sal, aroma de vainilla. Puede contener trazas de FRUTOS SECOS y HUEVO.'
+  },
+  {
+    name: 'Hummus clásico',
+    emoji: '🫛',
+    summary: 'Garbanzos, tahini, limón',
+    text: 'Ingredientes: garbanzos cocidos (62%), agua, tahini (SÉSAMO) 8%, aceite de oliva virgen extra, zumo de limón, ajo, sal marina, comino. Elaborado en una fábrica que también utiliza FRUTOS SECOS.'
+  },
+  {
+    name: 'Patatas chips campesinas',
+    emoji: '🥔',
+    summary: 'Patata y aceite de girasol',
+    text: 'Ingredientes: patata, aceite de girasol alto oleico, sal. No contiene gluten. Sin alérgenos declarados.'
+  },
+  {
+    name: 'Vino tinto reserva',
+    emoji: '🍷',
+    summary: 'Sulfitos declarados',
+    text: 'Ingredientes: uva tinta, contiene SULFITOS (E224). Conservar en lugar fresco y seco.'
+  },
+  {
+    name: 'Batido proteico',
+    emoji: '🥤',
+    summary: 'Proteína whey y soja',
+    text: 'Ingredientes: agua, proteína de SUERO LÁCTEO concentrada (LECHE) 14%, proteína de SOJA aislada, cacao desgrasado, aroma, edulcorantes (E955, E950), espesante (E407). Puede contener trazas de HUEVO y GLUTEN.'
+  },
+  {
+    name: 'Pan integral envasado',
+    emoji: '🍞',
+    summary: 'Trigo y centeno',
+    text: 'Ingredientes: harina integral de TRIGO 64%, agua, harina de CENTENO, levadura, sal, masa madre de trigo deshidratada, aceite de girasol, conservador (E282). Contiene GLUTEN.'
+  }
+];
+
+/* ============================================================================
+   ROUTING
+   ============================================================================ */
+const VIEW_META = {
+  home:     { title: 'Inicio',          sub: 'Resumen y acceso rápido' },
+  profile:  { title: 'Mi perfil',       sub: 'Personaliza qué ingredientes evitar o tolerar' },
+  analyze:  { title: 'Analizar',        sub: 'Subir foto · OCR · Análisis' },
+  result:   { title: 'Resultado',       sub: 'Veredicto detallado' },
+  history:  { title: 'Historial',       sub: 'Análisis anteriores' },
+  about:    { title: 'Acerca de',       sub: 'Información del sistema' }
+};
+
+function goView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === name));
+  const m = VIEW_META[name] || VIEW_META.home;
+  document.getElementById('topbarTitle').firstChild.textContent = m.title + ' ';
+  document.getElementById('topbarSub').textContent = m.sub;
+  document.querySelector('.content').scrollTop = 0;
+  if (name === 'history') renderHistory();
+}
+
+document.getElementById('nav').addEventListener('click', e => {
+  const item = e.target.closest('.nav-item');
+  if (item) goView(item.dataset.view);
+});
+document.querySelectorAll('[data-view]').forEach(el => {
+  if (!el.closest('.nav')) el.addEventListener('click', () => goView(el.dataset.view));
+});
+
+/* ============================================================================
+   PROFILE MANAGEMENT
+   ============================================================================ */
+function renderProfile() {
+  ['prohibido','permitido','limitado','soloTrazas'].forEach(cat => {
+    const list = document.getElementById('list' + cap(cat));
+    const arr = state.profile[cat];
+    list.innerHTML = arr.length
+      ? arr.map(it => `<span class="tag ${tagCls(cat)}">${escapeHtml(it)}<span class="x" onclick="removeIng('${cat}','${escapeAttr(it)}')">×</span></span>`).join('')
+      : `<span style="font-size:12.5px; color:var(--ink-400); padding:6px 2px">Sin ingredientes añadidos</span>`;
+    document.getElementById('cnt' + cap(cat)).textContent = arr.length;
+  });
+  document.getElementById('switchTrazas').classList.toggle('on', state.profile.permitirTrazas);
+  renderPresets();
+  updateProfileChip();
+}
+function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+function tagCls(c) { return ({prohibido:'tag-r', permitido:'tag-g', limitado:'tag-y', soloTrazas:'tag-p'})[c]; }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+function escapeAttr(s) { return String(s).replace(/'/g, "\\'"); }
+
+function addIng(cat, input) {
+  const v = (input.value || '').trim().toLowerCase();
+  if (!v) return;
+  if (!state.profile[cat].includes(v)) {
+    state.profile[cat].push(v);
+    toast(`Añadido a ${labelCat(cat)}: "${v}"`, 'ok');
+  }
+  input.value = '';
+  renderProfile();
+  db.saveProfile();
+}
+function removeIng(cat, item) {
+  state.profile[cat] = state.profile[cat].filter(x => x !== item);
+  renderProfile();
+  db.saveProfile();
+  toast(`Eliminado "${item}"`, '');
+}
+function labelCat(cat) {
+  return ({prohibido:'NO PUEDO TOMAR', permitido:'SÍ PUEDO', limitado:'EN PEQUEÑA CANTIDAD', soloTrazas:'SOLO TRAZAS'})[cat];
+}
+function toggleTrazas() {
+  state.profile.permitirTrazas = !state.profile.permitirTrazas;
+  renderProfile();
+  db.saveProfile();
+  toast(state.profile.permitirTrazas ? 'Trazas permitidas' : 'Trazas no permitidas', state.profile.permitirTrazas ? 'ok' : 'warn');
+}
+function resetProfile() {
+  if (!confirm('¿Restablecer todo tu perfil a los valores por defecto?')) return;
+  state.profile = defaultProfile();
+  renderProfile();
+  db.saveProfile();
+  toast('Perfil restablecido', 'ok');
+}
+function renderPresets() {
+  const grid = document.getElementById('presetGrid');
+  grid.innerHTML = PRESETS.map(k => {
+    const a = ALLERGEN_DICT[k];
+    const isOn = state.profile.prohibido.some(p => a.terms.includes(p) || p === a.label.toLowerCase());
+    return `<button class="preset-toggle ${isOn ? 'checked' : ''}" onclick="togglePreset('${k}')">
+      <span class="emoji">${a.emoji}</span><span>${a.label}</span>
+    </button>`;
+  }).join('');
+}
+function togglePreset(key) {
+  const a = ALLERGEN_DICT[key];
+  const canon = a.label.toLowerCase();
+  if (state.profile.prohibido.includes(canon)) {
+    state.profile.prohibido = state.profile.prohibido.filter(x => x !== canon);
+    toast(`Eliminado "${a.label}" de prohibidos`, '');
+  } else {
+    state.profile.prohibido.push(canon);
+    toast(`"${a.label}" añadido a prohibidos`, 'ok');
+  }
+  renderProfile();
+  db.saveProfile();
+}
+function updateProfileChip() {
+  const total = state.profile.prohibido.length + state.profile.limitado.length + state.profile.soloTrazas.length;
+  const chip = document.getElementById('profileChip');
+  const txt = document.getElementById('profileChipText');
+  chip.className = 'chip ' + (total === 0 ? 'chip-warn' : 'chip-ok');
+  txt.textContent = total === 0 ? 'Perfil vacío' : `${total} restricciones activas`;
+}
+
+/* ============================================================================
+   ANALYSIS ENGINE
+   ============================================================================ */
+function normalize(s) {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Section parsing: extract main ingredients vs. trace declarations
+function parseSections(rawText) {
+  const text = (rawText || '').trim();
+  const lower = normalize(text);
+  // Find trace markers
+  const traceMarkers = [
+    'puede contener trazas',
+    'puede contener',
+    'elaborado en una fabrica que tambien utiliza',
+    'elaborado en una fabrica que tambien procesa',
+    'elaborado en instalaciones que tambien procesan',
+    'fabricado en instalaciones que',
+    'producido en una linea que tambien procesa',
+    'trazas de'
+  ];
+  let traceIdx = -1, traceLen = 0;
+  for (const m of traceMarkers) {
+    const i = lower.indexOf(m);
+    if (i !== -1 && (traceIdx === -1 || i < traceIdx)) { traceIdx = i; traceLen = m.length; }
+  }
+  let mainText = text, traceText = '';
+  if (traceIdx !== -1) {
+    mainText  = text.substring(0, traceIdx);
+    traceText = text.substring(traceIdx + traceLen);
+  }
+  // Strip leading "Ingredientes:"
+  mainText = mainText.replace(/^[^:]*ingredientes?\s*:/i, '').trim();
+  return { mainText, traceText };
+}
+
+// Tokenize ingredient string into individual items
+function tokenize(section) {
+  if (!section) return [];
+  // Strip percentages, parentheses content kept inline
+  // Split by , ; . • · | / and "y"
+  return section
+    .replace(/\d+([.,]\d+)?\s*%/g, '')
+    .split(/[,;•·|]|(?:\s+y\s+)/i)
+    .map(s => s.replace(/\([^)]*\)/g, m => ' ' + m.slice(1,-1) + ' '))
+    .map(s => s.replace(/^[\s\-–—]+|[\s\-–—.:]+$/g, '').trim())
+    .filter(s => s.length > 1 && !/^[\d\s%.,-]+$/.test(s));
+}
+
+// Check if a single ingredient string matches any of the dictionary terms / user-listed term
+function matchAgainst(ingredient, list, useDict = true) {
+  const ing = normalize(ingredient);
+  for (const item of list) {
+    const target = normalize(item);
+    if (!target) continue;
+    // Direct substring match
+    if (ing.includes(target)) return { matched: item, via: 'directo', confidence: 'alta' };
+    // Dictionary lookup: if user listed an allergen category by name
+    if (useDict) {
+      const dict = Object.values(ALLERGEN_DICT).find(d => normalize(d.label) === target || d.terms.map(normalize).includes(target));
+      if (dict) {
+        for (const t of dict.terms) {
+          const nt = normalize(t);
+          if (nt && ing.includes(nt)) {
+            return { matched: item, via: `derivado: "${t}"`, confidence: target === nt ? 'alta' : 'media' };
+          }
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Check additive E-codes
+function findAdditives(ingredient) {
+  const m = normalize(ingredient).match(/\be\s?\d{3,4}[a-z]?\b/g);
+  return m ? Array.from(new Set(m.map(s => s.replace(/\s+/g,'').toUpperCase()))) : [];
+}
+
+// Heuristic: is the token ambiguous? (very short, contains generic words like "aroma", "saborizante natural", etc.)
+function ambiguous(ingredient) {
+  const ing = normalize(ingredient);
+  const flags = ['aroma','aromas','aromatizante','saborizante','sabor natural','extracto natural','especias','condimento','colorante natural','colorantes naturales','grasa vegetal'];
+  return flags.some(f => ing === f || ing.startsWith(f + ' ') || ing.endsWith(' ' + f));
+}
+
+function analyze(text) {
+  const { mainText, traceText } = parseSections(text);
+  const mainItems  = tokenize(mainText);
+  const traceItems = tokenize(traceText);
+
+  const findings = {
+    prohibidoMain:   [],   // hard fails
+    soloTrazasMain:  [],   // allergen marked as "solo trazas" appearing as main → NO APTO
+    limitadoMain:    [],   // warnings
+    prohibidoTrace:  [],   // depends on permitirTrazas
+    ambiguous:       [],
+    additives:       new Set(),
+    detected:        []    // for display
+  };
+
+  // Process main ingredients
+  for (const ing of mainItems) {
+    let tagged = null;
+
+    // 1) Check user-allowed first → if explicit user allowed, downgrade
+    const permitMatch = matchAgainst(ing, state.profile.permitido, false);
+
+    // 2) Prohibido
+    const profMatch = matchAgainst(ing, state.profile.prohibido, true);
+    if (profMatch && !permitMatch) {
+      findings.prohibidoMain.push({ ingredient: ing, ...profMatch });
+      tagged = 'r';
+    }
+
+    // 3) Solo trazas (aparece como ingrediente principal)
+    if (!tagged) {
+      const stMatch = matchAgainst(ing, state.profile.soloTrazas, true);
+      if (stMatch && !permitMatch) {
+        findings.soloTrazasMain.push({ ingredient: ing, ...stMatch });
+        tagged = 'r';
+      }
+    }
+
+    // 4) Limitado
+    if (!tagged) {
+      const limMatch = matchAgainst(ing, state.profile.limitado, true);
+      if (limMatch) {
+        findings.limitadoMain.push({ ingredient: ing, ...limMatch });
+        tagged = 'y';
+      }
+    }
+
+    // 5) Ambiguous (unknown / aroma natural / etc.)
+    if (!tagged && ambiguous(ing)) {
+      findings.ambiguous.push(ing);
+      tagged = '?';
+    }
+
+    // Additives detection
+    const adds = findAdditives(ing);
+    adds.forEach(a => findings.additives.add(a));
+
+    findings.detected.push({ ing, tag: tagged });
+  }
+
+  // Process traces
+  for (const ing of traceItems) {
+    const profMatch = matchAgainst(ing, state.profile.prohibido, true);
+    if (profMatch) findings.prohibidoTrace.push({ ingredient: ing, ...profMatch });
+    findings.detected.push({ ing: ing, tag: profMatch ? 'p' : null, traza: true });
+  }
+
+  // Decide verdict
+  let verdict, motivos = [], extras = [], recomendacion = '';
+
+  if (findings.prohibidoMain.length || findings.soloTrazasMain.length) {
+    verdict = 'no';
+    findings.prohibidoMain.forEach(f => motivos.push({
+      title: 'Ingrediente prohibido detectado',
+      text: `Contiene <b>"${escapeHtml(f.ingredient)}"</b>, que coincide con <b>${escapeHtml(f.matched)}</b> en tu lista de "no puedo tomar" (${escapeHtml(f.via)}).`
+    }));
+    findings.soloTrazasMain.forEach(f => motivos.push({
+      title: 'Aparece como ingrediente principal',
+      text: `<b>"${escapeHtml(f.ingredient)}"</b> está en tu lista de "solo permitido como trazas", pero aparece en los ingredientes principales (${escapeHtml(f.via)}).`
+    }));
+    if (findings.prohibidoTrace.length && !state.profile.permitirTrazas) {
+      findings.prohibidoTrace.forEach(f => motivos.push({
+        title: 'Trazas no permitidas',
+        text: `Puede contener trazas de <b>"${escapeHtml(f.ingredient)}"</b> (coincide con ${escapeHtml(f.matched)}). Has desactivado la tolerancia a trazas.`
+      }));
+    }
+    recomendacion = 'No consumir. Si tienes dudas sobre la etiqueta, contrasta con el fabricante o un profesional sanitario.';
+  } else if (findings.prohibidoTrace.length && !state.profile.permitirTrazas) {
+    verdict = 'no';
+    findings.prohibidoTrace.forEach(f => motivos.push({
+      title: 'Trazas no permitidas',
+      text: `Puede contener trazas de <b>"${escapeHtml(f.ingredient)}"</b> (coincide con ${escapeHtml(f.matched)}). Has desactivado la tolerancia a trazas en tu perfil.`
+    }));
+    recomendacion = 'No consumir mientras tengas las trazas desactivadas en tu perfil.';
+  } else if (findings.limitadoMain.length || findings.ambiguous.length || (findings.prohibidoTrace.length && state.profile.permitirTrazas)) {
+    verdict = 'duda';
+    findings.limitadoMain.forEach(f => motivos.push({
+      title: 'Ingrediente con cantidad a revisar',
+      text: `Contiene <b>"${escapeHtml(f.ingredient)}"</b>, que solo toleras en pequeña cantidad. Revisa el porcentaje y la información nutricional.`
+    }));
+    findings.ambiguous.forEach(a => extras.push(`Ingrediente ambiguo o genérico: <b>"${escapeHtml(a)}"</b> — no se puede determinar su origen exacto.`));
+    findings.prohibidoTrace.forEach(f => extras.push(`Trazas posibles de <b>"${escapeHtml(f.ingredient)}"</b> (las has aceptado en general, pero conviene revisar).`));
+    recomendacion = 'Revisa con atención antes de consumir. Si tienes dudas sobre cantidades o procedencia, consulta con un profesional.';
+  } else {
+    verdict = 'apto';
+    motivos.push({ title: 'Compatible con tu perfil', text: 'No se han detectado ingredientes prohibidos, ambiguos sospechosos ni trazas conflictivas.' });
+    recomendacion = 'Producto compatible con las restricciones definidas en tu perfil actual.';
+  }
+
+  // Add additives as extras if any
+  if (findings.additives.size) extras.push(`Aditivos detectados: <b>${[...findings.additives].join(', ')}</b>. Revisa si alguno te afecta personalmente.`);
+
+  return { verdict, motivos, extras, recomendacion, findings, mainText, traceText };
+}
+
+/* ============================================================================
+   ANALYZE VIEW: image, OCR, run
+   ============================================================================ */
+const dropzone     = document.getElementById('dropzone');
+const fileInput    = document.getElementById('fileInput');
+const cameraInput  = document.getElementById('cameraInput');
+const previewWrap  = document.getElementById('previewWrap');
+const previewImg   = document.getElementById('previewImg');
+const previewName  = document.getElementById('previewName');
+const ocrText      = document.getElementById('ocrText');
+const ocrProgress  = document.getElementById('ocrProgress');
+const ocrProgFill  = document.getElementById('ocrProgressFill');
+const ocrProgText  = document.getElementById('ocrProgressText');
+
+['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) handleImage(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleImage(e.target.files[0]); });
+cameraInput.addEventListener('change', e => { if (e.target.files[0]) handleImage(e.target.files[0]); });
+
+ocrText.addEventListener('input', () => {
+  document.getElementById('charCount').textContent = ocrText.value.length + ' caracteres';
+});
+
+function handleImage(file) {
+  if (!file.type.startsWith('image/')) {
+    toast('Por favor, sube una imagen', 'bad');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.current = e.target.result;
+    previewImg.src = e.target.result;
+    previewName.textContent = file.name;
+    previewWrap.classList.add('show');
+    runOCR(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  state.current = null;
+  previewImg.src = '';
+  previewWrap.classList.remove('show');
+  ocrText.value = '';
+  document.getElementById('charCount').textContent = '0 caracteres';
+}
+
+async function runOCR(dataUrl) {
+  ocrProgress.classList.add('show');
+  ocrProgText.textContent = 'Inicializando OCR…';
+  ocrProgFill.style.width = '4%';
+  ocrText.value = '';
+  try {
+    const result = await Tesseract.recognize(dataUrl, 'spa+eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          const pct = Math.round((m.progress || 0) * 100);
+          ocrProgFill.style.width = (5 + pct * 0.9) + '%';
+          ocrProgText.textContent = `Reconociendo texto… ${pct}%`;
+        } else {
+          ocrProgText.textContent = m.status.charAt(0).toUpperCase() + m.status.slice(1) + '…';
+        }
+      }
+    });
+    ocrProgFill.style.width = '100%';
+    setTimeout(() => ocrProgress.classList.remove('show'), 600);
+    ocrText.value = (result.data.text || '').trim();
+    document.getElementById('charCount').textContent = ocrText.value.length + ' caracteres';
+    toast('Texto extraído. Revísalo antes de analizar.', 'ok');
+  } catch (err) {
+    ocrProgress.classList.remove('show');
+    console.error(err);
+    toast('Error al procesar la imagen. Puedes pegar el texto manualmente.', 'bad');
+  }
+}
+
+async function runAnalysis() {
+  const text = ocrText.value.trim();
+  if (!text) { toast('Añade o extrae primero el texto de la etiqueta', 'warn'); return; }
+  const result = analyze(text);
+  const item = {
+    id: 'tmp_' + Date.now(),
+    text,
+    image: state.current,
+    result,
+    date: new Date().toISOString()
+  };
+  state.lastResult = item;
+  state.history.unshift(item);
+  renderResult();
+  goView('result');
+  updateStats();
+  toast('Análisis completado', result.verdict === 'apto' ? 'ok' : result.verdict === 'no' ? 'bad' : 'warn');
+  try {
+    const saved = await db.insertAnalysis(item);
+    item.id = saved.id;
+    item.date = saved.date;
+  } catch (e) {
+    console.error(e);
+    toast('Guardado solo en este dispositivo (error de red)', 'warn');
+  }
+}
+
+/* ============================================================================
+   RESULT RENDERING
+   ============================================================================ */
+function renderResult() {
+  const r = state.lastResult;
+  if (!r) return;
+  const v = r.result.verdict;
+  const cfg = ({
+    apto: {
+      cls: 'apto',
+      status: 'Resultado',
+      h: '✓ APTO',
+      tagline: 'Este alimento es compatible con las restricciones de tu perfil alimentario.',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`
+    },
+    no: {
+      cls: 'no',
+      status: 'Resultado',
+      h: '✕ NO APTO',
+      tagline: 'Este alimento contiene ingredientes que no debes consumir según tu perfil.',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>`
+    },
+    duda: {
+      cls: 'duda',
+      status: 'Resultado',
+      h: '⚠ DUDOSO',
+      tagline: 'Hay elementos que conviene revisar. Por prudencia, no se garantiza la idoneidad.',
+      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>`
+    }
+  })[v];
+
+  let motivosHtml = r.result.motivos.map(m => `
+    <div class="finding">
+      <div class="finding-head">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        ${m.title}
+      </div>
+      <div class="finding-content">${m.text}</div>
+    </div>`).join('');
+
+  if (r.result.extras.length) {
+    motivosHtml += `
+    <div class="finding">
+      <div class="finding-head">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12M2 7l10 5 10-5"/><path d="M2 7l10-5 10 5"/></svg>
+        Información adicional
+      </div>
+      <div class="finding-content">
+        <ul class="finding-list">${r.result.extras.map(e => `<li>${e}</li>`).join('')}</ul>
+      </div>
+    </div>`;
+  }
+
+  motivosHtml += `
+    <div class="finding">
+      <div class="finding-head">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Recomendación
+      </div>
+      <div class="finding-content">${r.result.recomendacion}</div>
+    </div>`;
+
+  // Detected ingredients list
+  const detHtml = r.result.findings.detected.map(d => {
+    const cls = d.tag ? `match-${d.tag}` : '';
+    const traza = d.traza ? ' <span style="font-size:10px; opacity:.7">(traza)</span>' : '';
+    return `<span class="det-ing ${cls}"><span class="dot"></span>${escapeHtml(d.ing)}${traza}</span>`;
+  }).join('') || '<span style="font-size:12.5px; color:var(--ink-400)">Sin ingredientes detectados</span>';
+
+  document.getElementById('resultShell').innerHTML = `
+    <div class="verdict ${cfg.cls}">
+      <div class="verdict-head">
+        <div class="verdict-icon">${cfg.icon}</div>
+        <div>
+          <div class="verdict-status">${cfg.status}</div>
+          <h2>${cfg.h}</h2>
+          <div class="verdict-tagline">${cfg.tagline}</div>
+        </div>
+      </div>
+      <div class="findings">${motivosHtml}</div>
+    </div>
+    <div class="result-side">
+      <div class="detected-ings">
+        <div class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-600)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H3v10h6V11zM21 3h-6v18h6V3zM15 7H9v14h6V7z"/></svg>
+          Ingredientes detectados (${r.result.findings.detected.length})
+        </div>
+        <div class="card-subtitle">Listado completo del análisis léxico</div>
+        <div class="det-list">${detHtml}</div>
+        <div class="legend">
+          <div class="legend-item"><span class="swatch" style="background:var(--bad)"></span>Prohibido</div>
+          <div class="legend-item"><span class="swatch" style="background:var(--warn)"></span>Limitado</div>
+          <div class="legend-item"><span class="swatch" style="background:#8b5cf6"></span>Traza prohibida</div>
+          <div class="legend-item"><span class="swatch" style="background:var(--ink-300)"></span>Ambiguo / Otros</div>
+        </div>
+      </div>
+      <div class="disclaimer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <div><b>Aviso importante:</b> NutriCheck es una herramienta de apoyo. Ante dudas, especialmente con alergias graves, consulta siempre con un profesional sanitario o el fabricante.</div>
+      </div>
+    </div>`;
+}
+
+/* ============================================================================
+   HISTORY
+   ============================================================================ */
+function renderHistory() {
+  const body = document.getElementById('historyBody');
+  if (!state.history.length) {
+    body.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        Aún no has analizado ninguna etiqueta. Empieza desde la pantalla "Analizar".
+      </div>`;
+    return;
+  }
+  body.innerHTML = state.history.map(h => {
+    const v = h.result.verdict;
+    const cls = v === 'apto' ? 'apto' : v === 'no' ? 'no' : 'duda';
+    const label = v === 'apto' ? 'APTO' : v === 'no' ? 'NO APTO' : 'DUDOSO';
+    const emoji = v === 'apto' ? '✓' : v === 'no' ? '✕' : '⚠';
+    const snippet = h.text.replace(/\s+/g,' ').slice(0, 90);
+    const d = new Date(h.date);
+    const dateStr = d.toLocaleString('es-ES', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+    return `<div class="history-row" onclick="reopenHistory(${h.id})">
+      <div class="h-thumb">${emoji}</div>
+      <div>
+        <div class="h-name">Análisis #${h.id.toString().slice(-5)}</div>
+        <div class="h-snippet">${escapeHtml(snippet)}…</div>
+      </div>
+      <div class="h-date">${dateStr}</div>
+      <div><span class="recent-status ${cls === 'apto' ? 'apto' : cls === 'no' ? 'no' : 'duda'}">${label}</span></div>
+      <div class="h-actions">
+        <button class="icon-btn" title="Eliminar" onclick="event.stopPropagation(); deleteHistory(${h.id})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function reopenHistory(id) {
+  const h = state.history.find(x => x.id === id);
+  if (!h) return;
+  state.lastResult = h;
+  renderResult();
+  goView('result');
+}
+async function deleteHistory(id) {
+  state.history = state.history.filter(x => x.id !== id);
+  renderHistory();
+  updateStats();
+  toast('Análisis eliminado', '');
+  if (String(id).startsWith('tmp_')) return;
+  try { await db.deleteAnalysis(id); }
+  catch (e) { console.error(e); toast('No se pudo borrar de la nube', 'bad'); }
+}
+async function clearHistory() {
+  if (!state.history.length) return;
+  if (!confirm('¿Vaciar todo el historial de análisis?')) return;
+  state.history = [];
+  renderHistory();
+  updateStats();
+  toast('Historial vaciado', '');
+  try { await db.clearAnalyses(); }
+  catch (e) { console.error(e); toast('Error al vaciar en la nube', 'bad'); }
+}
+
+/* ============================================================================
+   STATS + RECENT
+   ============================================================================ */
+function updateStats() {
+  const total = state.history.length;
+  const apto  = state.history.filter(h => h.result.verdict === 'apto').length;
+  const duda  = state.history.filter(h => h.result.verdict === 'duda').length;
+  const no    = state.history.filter(h => h.result.verdict === 'no').length;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statApto').textContent  = apto;
+  document.getElementById('statDuda').textContent  = duda;
+  document.getElementById('statNo').textContent    = no;
+  document.getElementById('navBadgeHistory').textContent = total;
+  document.getElementById('navBadgeHistory').style.display = total ? 'inline-block' : 'none';
+  const bn = document.getElementById('bnBadge');
+  bn.textContent = total > 99 ? '99+' : total;
+  bn.style.display = total ? 'inline-block' : 'none';
+
+  // Recent list
+  const list = document.getElementById('recentList');
+  if (!total) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        Sin análisis todavía. Sube tu primera etiqueta.
+      </div>`;
+    return;
+  }
+  list.innerHTML = state.history.slice(0, 5).map(h => {
+    const v = h.result.verdict;
+    const label = v === 'apto' ? 'APTO' : v === 'no' ? 'NO APTO' : 'DUDOSO';
+    const cls = v === 'apto' ? 'apto' : v === 'no' ? 'no' : 'duda';
+    const emoji = v === 'apto' ? '✓' : v === 'no' ? '✕' : '⚠';
+    const snippet = h.text.replace(/\s+/g,' ').slice(0, 70);
+    const d = new Date(h.date);
+    return `<div class="recent-item" onclick="reopenHistory(${h.id})">
+      <div class="recent-thumb">${emoji}</div>
+      <div class="recent-info">
+        <div class="recent-name">Análisis #${h.id.toString().slice(-5)}</div>
+        <div class="recent-meta">${escapeHtml(snippet)}…</div>
+      </div>
+      <div class="recent-status ${cls}">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ============================================================================
+   SAMPLES
+   ============================================================================ */
+function renderSamples() {
+  const grid = document.getElementById('samplesGrid');
+  grid.innerHTML = SAMPLES.map((s, i) => `
+    <button class="sample-btn" onclick="loadSample(${i})">
+      <strong>${s.emoji} ${escapeHtml(s.name)}</strong>
+      <small>${escapeHtml(s.summary)}</small>
+    </button>
+  `).join('');
+}
+function loadSample(i) {
+  const s = SAMPLES[i];
+  ocrText.value = s.text;
+  document.getElementById('charCount').textContent = ocrText.value.length + ' caracteres';
+  clearImage();
+  toast(`Cargado ejemplo: ${s.name}`, 'ok');
+}
+
+/* ============================================================================
+   TOAST
+   ============================================================================ */
+function toast(msg, type = '') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const icon = type === 'ok' ? '✓' : type === 'bad' ? '✕' : type === 'warn' ? '⚠' : '•';
+  t.innerHTML = `<span style="font-weight:700">${icon}</span><span>${escapeHtml(msg)}</span>`;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateY(8px)'; t.style.transition = 'all .3s'; }, 3200);
+  setTimeout(() => t.remove(), 3600);
+}
+
+/* ============================================================================
+   INIT
+   ============================================================================ */
+renderSamples();
+sb.auth.onAuthStateChange(async (event, session) => {
+  if (session) {
+    if (!currentUser || currentUser.id !== session.user.id) {
+      await bootApp(session);
+    }
+  } else {
+    currentUser = null;
+    state.profile = defaultProfile();
+    state.history = [];
+    if (saveProfileTimer) { clearTimeout(saveProfileTimer); saveProfileTimer = null; }
+    showAuthScreen();
+  }
+});
+</script>
+</body>
+</html>
