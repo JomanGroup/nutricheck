@@ -1783,13 +1783,19 @@ a { color: inherit; text-decoration: none; }
 
         <div class="section-header">
           <div>
-            <div class="section-title">Mi perfil alimentario</div>
-            <div class="section-subtitle">Define qué ingredientes evitar, cuáles puedes consumir y cómo tratamos las trazas. Tu perfil es la base de todo análisis.</div>
+            <div class="section-title">Mi perfil alimentario <span id="dirtyDot" style="display:none; color:var(--warn); font-size:14px; vertical-align:middle">●</span></div>
+            <div class="section-subtitle">Define qué ingredientes evitar, cuáles puedes consumir y cómo tratamos las trazas. <b id="dirtyHint" style="color:var(--warn); display:none">Tienes cambios sin guardar.</b></div>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="resetProfile()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.7-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.7 6L3 16"/><path d="M3 21v-5h5"/></svg>
-            Restablecer
-          </button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap">
+            <button id="btnSaveProfile" class="btn btn-primary btn-sm" onclick="saveProfileNow()" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+              <span id="btnSaveProfileLbl">Guardado</span>
+            </button>
+            <button class="btn btn-ghost btn-sm" onclick="resetProfile()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.7-6L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.7 6L3 16"/><path d="M3 21v-5h5"/></svg>
+              Restablecer
+            </button>
+          </div>
         </div>
 
         <div class="switch-row">
@@ -2261,7 +2267,9 @@ async function bootApp(session) {
     toast('Error al cargar el historial: ' + (e?.message || ''), 'bad');
     state.history = [];
   }
+  state.profileDirty = false;
   renderProfile();
+  renderSaveBtn();
   updateStats();
   console.log('[NC][bootApp] END · state.profile FINAL =', JSON.stringify(state.profile));
 }
@@ -2297,10 +2305,57 @@ const state = {
     soloTrazas:  [],
     permitirTrazas: false
   },
+  profileDirty: false,
   history: [],
   current: null,   // current image data URL
   lastResult: null
 };
+
+function markProfileDirty() {
+  state.profileDirty = true;
+  renderSaveBtn();
+}
+function renderSaveBtn() {
+  const btn = document.getElementById('btnSaveProfile');
+  const lbl = document.getElementById('btnSaveProfileLbl');
+  const dot = document.getElementById('dirtyDot');
+  const hint = document.getElementById('dirtyHint');
+  if (!btn || !lbl) return;
+  btn.disabled = !state.profileDirty;
+  lbl.textContent = state.profileDirty ? 'Guardar cambios' : 'Guardado';
+  if (dot)  dot.style.display  = state.profileDirty ? 'inline' : 'none';
+  if (hint) hint.style.display = state.profileDirty ? 'inline' : 'none';
+}
+async function saveProfileNow() {
+  if (!currentUser) { toast('No estás logueado', 'bad'); return; }
+  if (!state.profileDirty) return;
+  const btn = document.getElementById('btnSaveProfile');
+  const lbl = document.getElementById('btnSaveProfileLbl');
+  if (btn) btn.disabled = true;
+  if (lbl) lbl.textContent = 'Guardando…';
+  try {
+    const { error } = await sb.from('profiles').upsert({
+      id: currentUser.id,
+      data: state.profile,
+      updated_at: new Date().toISOString()
+    });
+    if (error) throw error;
+    state.profileDirty = false;
+    toast('Perfil guardado', 'ok');
+  } catch (e) {
+    console.error('[NC][saveProfileNow] error:', e);
+    toast('Error al guardar: ' + (e?.message || 'desconocido'), 'bad');
+  } finally {
+    renderSaveBtn();
+  }
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (state.profileDirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 // Sample texts for testing
 const SAMPLES = [
@@ -2403,12 +2458,12 @@ function addIng(cat, input) {
   }
   input.value = '';
   renderProfile();
-  db.saveProfile();
+  markProfileDirty();
 }
 function removeIng(cat, item) {
   state.profile[cat] = state.profile[cat].filter(x => x !== item);
   renderProfile();
-  db.saveProfile();
+  markProfileDirty();
   toast(`Eliminado "${item}"`, '');
 }
 function labelCat(cat) {
@@ -2417,14 +2472,14 @@ function labelCat(cat) {
 function toggleTrazas() {
   state.profile.permitirTrazas = !state.profile.permitirTrazas;
   renderProfile();
-  db.saveProfile();
+  markProfileDirty();
   toast(state.profile.permitirTrazas ? 'Trazas permitidas' : 'Trazas no permitidas', state.profile.permitirTrazas ? 'ok' : 'warn');
 }
 function resetProfile() {
   if (!confirm('¿Restablecer todo tu perfil a los valores por defecto?')) return;
   state.profile = defaultProfile();
   renderProfile();
-  db.saveProfile();
+  markProfileDirty();
   toast('Perfil restablecido', 'ok');
 }
 function renderPresets() {
@@ -2448,7 +2503,7 @@ function togglePreset(key) {
     toast(`"${a.label}" añadido a prohibidos`, 'ok');
   }
   renderProfile();
-  db.saveProfile();
+  markProfileDirty();
 }
 function updateProfileChip() {
   const total = state.profile.prohibido.length + state.profile.limitado.length + state.profile.soloTrazas.length;
