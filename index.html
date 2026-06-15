@@ -2179,30 +2179,33 @@ function defaultProfile() {
 
 const db = {
   async loadProfile() {
+    console.log('[NC][loadProfile] query id =', currentUser?.id);
     const { data, error } = await sb.from('profiles').select('data').eq('id', currentUser.id).maybeSingle();
+    console.log('[NC][loadProfile] returned data =', data, 'error =', error);
     if (error) throw error;
     return data ? data.data : null;
   },
   async ensureProfile() {
-    let p = await this.loadProfile();
-    if (!p) {
-      p = defaultProfile();
-      const { error } = await sb.from('profiles').insert({ id: currentUser.id, data: p });
-      if (error) throw error;
-    }
-    return p;
+    const p = await this.loadProfile();
+    if (p) { console.log('[NC][ensureProfile] usando perfil cargado'); return p; }
+    console.log('[NC][ensureProfile] sin perfil en DB, devuelvo defaults (sin escribir)');
+    return defaultProfile();
   },
   saveProfile() {
     if (saveProfileTimer) clearTimeout(saveProfileTimer);
     saveProfileTimer = setTimeout(async () => {
       if (!currentUser) return;
-      const { error } = await sb.from('profiles').update({
+      console.log('[NC][saveProfile] UPSERT para id =', currentUser.id, 'data =', JSON.stringify(state.profile));
+      const { error } = await sb.from('profiles').upsert({
+        id: currentUser.id,
         data: state.profile,
         updated_at: new Date().toISOString()
-      }).eq('id', currentUser.id);
+      });
       if (error) {
-        console.error(error);
-        toast('Error al guardar el perfil', 'bad');
+        console.error('[NC][saveProfile] error:', error);
+        toast('Error al guardar el perfil: ' + error.message, 'bad');
+      } else {
+        console.log('[NC][saveProfile] OK');
       }
     }, 400);
   },
@@ -2238,25 +2241,29 @@ const db = {
    BOOT / SESSION
    ============================================================================ */
 async function bootApp(session) {
+  console.log('[NC][bootApp] START · session.user.id =', session.user.id, '· email =', session.user.email);
   currentUser = session.user;
   hideAuthScreen();
   updateUserBox(currentUser);
   try {
     state.profile = await db.ensureProfile();
+    console.log('[NC][bootApp] state.profile DESPUES de cargar:', JSON.stringify(state.profile));
   } catch (e) {
-    console.error('[bootApp] error cargando perfil:', e);
-    toast('Error al cargar tu perfil', 'bad');
+    console.error('[NC][bootApp] ERROR perfil:', e);
+    toast('Error al cargar tu perfil: ' + (e?.message || ''), 'bad');
     state.profile = defaultProfile();
   }
   try {
     state.history = await db.loadHistory();
+    console.log('[NC][bootApp] history count =', state.history.length);
   } catch (e) {
-    console.error('[bootApp] error cargando historial:', e);
-    toast('Error al cargar el historial', 'bad');
+    console.error('[NC][bootApp] ERROR historial:', e);
+    toast('Error al cargar el historial: ' + (e?.message || ''), 'bad');
     state.history = [];
   }
   renderProfile();
   updateStats();
+  console.log('[NC][bootApp] END · state.profile FINAL =', JSON.stringify(state.profile));
 }
 
 // ----- Synonym & derivative dictionary -----
