@@ -1596,7 +1596,7 @@ a { color: inherit; text-decoration: none; }
         <label for="authPassword">Contraseña</label>
         <input type="password" id="authPassword" autocomplete="current-password" required minlength="6" placeholder="Mínimo 6 caracteres">
       </div>
-      <button class="auth-submit" type="submit" id="authSubmit">Entrar</button>
+      <button class="auth-submit" type="submit" id="authSubmitBtn">Entrar</button>
       <div class="auth-msg" id="authMsg"></div>
     </form>
 
@@ -2094,7 +2094,7 @@ function authToggleMode() {
   document.getElementById('authSubtitle').textContent = authMode === 'signin'
     ? 'Accede a tu perfil alimentario y a tu historial de análisis.'
     : 'Crea tu cuenta para guardar tu perfil y consultarlo desde cualquier dispositivo.';
-  document.getElementById('authSubmit').textContent = authMode === 'signin' ? 'Entrar' : 'Crear cuenta';
+  document.getElementById('authSubmitBtn').textContent = authMode === 'signin' ? 'Entrar' : 'Crear cuenta';
   document.getElementById('authToggleText').textContent = authMode === 'signin' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?';
   document.getElementById('authToggleLink').textContent = authMode === 'signin' ? 'Regístrate' : 'Inicia sesión';
   document.getElementById('authPassword').setAttribute('autocomplete', authMode === 'signin' ? 'current-password' : 'new-password');
@@ -2110,7 +2110,7 @@ async function authSubmit(ev) {
   ev.preventDefault();
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
-  const btn = document.getElementById('authSubmit');
+  const btn = document.getElementById('authSubmitBtn');
   if (!email || !password) return false;
   btn.disabled = true;
   setAuthMsg('', '');
