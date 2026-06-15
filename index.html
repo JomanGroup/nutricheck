@@ -3079,10 +3079,13 @@ function toast(msg, type = '') {
    INIT
    ============================================================================ */
 renderSamples();
-sb.auth.onAuthStateChange(async (event, session) => {
+sb.auth.onAuthStateChange((event, session) => {
+  console.log('[NC][onAuthStateChange] event =', event, '· session?', !!session);
   if (session) {
     if (!currentUser || currentUser.id !== session.user.id) {
-      await bootApp(session);
+      // IMPORTANTE: deferir con setTimeout para evitar deadlock de supabase-js
+      // (hacer queries dentro del callback de auth bloquea el cliente entero).
+      setTimeout(() => { bootApp(session); }, 0);
     }
   } else {
     currentUser = null;
