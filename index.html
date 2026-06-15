@@ -2243,11 +2243,16 @@ async function bootApp(session) {
   updateUserBox(currentUser);
   try {
     state.profile = await db.ensureProfile();
+  } catch (e) {
+    console.error('[bootApp] error cargando perfil:', e);
+    toast('Error al cargar tu perfil', 'bad');
+    state.profile = defaultProfile();
+  }
+  try {
     state.history = await db.loadHistory();
   } catch (e) {
-    console.error(e);
-    toast('Error al cargar tus datos. Revisa tu conexión.', 'bad');
-    state.profile = defaultProfile();
+    console.error('[bootApp] error cargando historial:', e);
+    toast('Error al cargar el historial', 'bad');
     state.history = [];
   }
   renderProfile();
