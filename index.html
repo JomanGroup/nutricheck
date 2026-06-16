@@ -1351,6 +1351,112 @@ a { color: inherit; text-decoration: none; }
 }
 
 /* ========================================================================
+   ACTION BAR (top of Analizar view): OCR progress + Listo-Analizar CTA
+   ======================================================================== */
+.action-bar {
+  display: none;
+  margin-bottom: 18px;
+  background: linear-gradient(135deg, var(--brand-50), #ffffff 80%);
+  border: 2px solid var(--brand-200);
+  border-radius: 18px;
+  padding: 16px 20px;
+  box-shadow: 0 8px 24px rgba(16,185,129,.10);
+  animation: abIn .35s cubic-bezier(.22,.61,.36,1);
+}
+.action-bar.show-processing,
+.action-bar.show-ready { display: block; }
+@keyframes abIn { from { opacity: 0; transform: translateY(-8px);} to { opacity:1; transform: translateY(0);} }
+
+.ab-state { display: none; align-items: center; gap: 16px; flex-wrap: wrap; }
+.action-bar.show-processing .ab-state[data-mode="processing"],
+.action-bar.show-ready      .ab-state[data-mode="ready"]      { display: flex; }
+
+.ab-spinner {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 3px solid rgba(16,185,129,.25);
+  border-top-color: var(--brand-600);
+  animation: abSpin 1s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes abSpin { to { transform: rotate(360deg); } }
+
+.ab-icon-check {
+  width: 44px; height: 44px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  color: #fff;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 8px 18px rgba(16,185,129,.42);
+  animation: abPop .45s cubic-bezier(.22,.61,.36,1);
+}
+@keyframes abPop {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.ab-icon-check svg { width: 24px; height: 24px; }
+
+.ab-text { flex: 1; min-width: 180px; }
+.ab-text strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink-900);
+  letter-spacing: -.01em;
+  margin-bottom: 2px;
+}
+.ab-text span {
+  font-size: 13px;
+  color: var(--ink-500);
+}
+
+.ab-pct {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--brand-700);
+  letter-spacing: -.02em;
+  min-width: 56px;
+  text-align: right;
+}
+
+.ab-cta {
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
+  color: #fff;
+  padding: 13px 22px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  box-shadow: 0 12px 26px rgba(16,185,129,.4);
+  transition: transform .15s, box-shadow .2s;
+  white-space: nowrap;
+  letter-spacing: -.01em;
+}
+.ab-cta:hover { transform: translateY(-1px); box-shadow: 0 16px 32px rgba(16,185,129,.52); }
+.ab-cta:active { transform: translateY(0); }
+.ab-cta svg { width: 18px; height: 18px; }
+
+@media (max-width: 768px) {
+  .action-bar { padding: 14px 16px; border-radius: 14px; margin-bottom: 14px; }
+  .ab-state { gap: 12px; }
+  .ab-text strong { font-size: 15.5px; }
+  .ab-text span { font-size: 12.5px; }
+  .ab-pct { font-size: 18px; }
+  .ab-cta {
+    width: 100%;
+    justify-content: center;
+    padding: 13px 16px;
+    font-size: 14.5px;
+  }
+}
+
+/* ========================================================================
    FLOATING ANALYZE BUTTON (FAB)
    ======================================================================== */
 .analyze-fab {
@@ -1969,6 +2075,30 @@ a { color: inherit; text-decoration: none; }
           </div>
         </div>
 
+        <div class="action-bar" id="actionBar">
+          <div class="ab-state" data-mode="processing">
+            <div class="ab-spinner"></div>
+            <div class="ab-text">
+              <strong>Analizando texto de la etiqueta…</strong>
+              <span id="abStatus">Inicializando OCR</span>
+            </div>
+            <div class="ab-pct" id="abPct">0%</div>
+          </div>
+          <div class="ab-state" data-mode="ready">
+            <div class="ab-icon-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+            </div>
+            <div class="ab-text">
+              <strong>Texto listo para analizar</strong>
+              <span>Revisa abajo si hace falta antes de continuar</span>
+            </div>
+            <button class="ab-cta" onclick="runAnalysis()">
+              Analizar ingredientes
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+
         <div class="analyze-grid">
           <!-- Left: capture -->
           <div class="card">
@@ -2135,11 +2265,6 @@ a { color: inherit; text-decoration: none; }
     </div>
   </nav>
 </div>
-
-<button class="analyze-fab" id="analyzeFab" onclick="runAnalysis()">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-  Analizar ingredientes
-</button>
 
 <div class="toast-container" id="toastContainer"></div>
 
@@ -2493,14 +2618,27 @@ function goView(name) {
 }
 
 function updateAnalyzeFab() {
-  const fab = document.getElementById('analyzeFab');
-  if (!fab) return;
+  // Conserva el nombre por compatibilidad con los hooks existentes,
+  // pero ahora controla la barra de acción superior (procesando / listo).
+  const bar = document.getElementById('actionBar');
+  if (!bar) return;
+  bar.classList.remove('show-processing', 'show-ready');
   const view = document.getElementById('view-analyze');
   const onAnalyze = view && view.classList.contains('active');
+  if (!onAnalyze) return;
+  const ocrBusy = document.getElementById('ocrProgress')?.classList.contains('show');
   const txt = document.getElementById('ocrText');
   const hasText = txt && txt.value.trim().length > 10;
-  const ocrBusy = document.getElementById('ocrProgress')?.classList.contains('show');
-  fab.classList.toggle('show', !!(onAnalyze && hasText && !ocrBusy));
+  // Si ya hay texto, prioriza "listo" sobre "procesando" (evita inconsistencia
+  // durante el fade-out del progreso inline tras completar OCR).
+  if (hasText) bar.classList.add('show-ready');
+  else if (ocrBusy) bar.classList.add('show-processing');
+}
+function setAbProgress(pct, status) {
+  const pctEl = document.getElementById('abPct');
+  const stEl  = document.getElementById('abStatus');
+  if (pctEl) pctEl.textContent = (pct ?? 0) + '%';
+  if (stEl && status) stEl.textContent = status;
 }
 
 document.getElementById('nav').addEventListener('click', e => {
@@ -2931,6 +3069,7 @@ async function runOCR(dataUrl) {
   ocrProgText.textContent = 'Inicializando OCR…';
   ocrProgFill.style.width = '4%';
   ocrText.value = '';
+  setAbProgress(0, 'Inicializando OCR');
   updateAnalyzeFab();
   try {
     const result = await Tesseract.recognize(dataUrl, 'spa+eng', {
@@ -2939,8 +3078,11 @@ async function runOCR(dataUrl) {
           const pct = Math.round((m.progress || 0) * 100);
           ocrProgFill.style.width = (5 + pct * 0.9) + '%';
           ocrProgText.textContent = `Reconociendo texto… ${pct}%`;
+          setAbProgress(pct, 'Reconociendo texto de la etiqueta');
         } else {
-          ocrProgText.textContent = m.status.charAt(0).toUpperCase() + m.status.slice(1) + '…';
+          const lbl = m.status.charAt(0).toUpperCase() + m.status.slice(1);
+          ocrProgText.textContent = lbl + '…';
+          setAbProgress(0, lbl);
         }
       }
     });
