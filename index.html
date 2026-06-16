@@ -2525,6 +2525,73 @@ function normalize(s) {
     .trim();
 }
 
+// Auto-extracción: del OCR completo de la etiqueta, recortar solo la sección de ingredientes.
+// Busca "Ingredientes:" y lee hasta el siguiente bloque (nutricional, peso, lote, fabricante, URL, etc).
+// Las trazas ("puede contener…") se mantienen porque suelen ir DENTRO del bloque de ingredientes.
+function extractIngredientsSection(rawText) {
+  if (!rawText) return { text: '', extracted: false };
+  const text = rawText.replace(/\r/g, '').trim();
+  if (text.length < 20) return { text, extracted: false };
+
+  // Marcadores de inicio (cualquier mayúscula/minúscula, con o sin ':')
+  const startPatterns = [
+    /\bingredientes\s*[:.]/i,
+    /\bingredients\s*[:.]/i,
+    /\bcomposici[oó]n\s*[:.]/i,
+    /\bcomposition\s*[:.]/i,
+    /\blista\s+de\s+ingredientes\s*[:.]?/i,
+    /\bingredientes\b/i,
+    /\bingredients\b/i
+  ];
+  let startIdx = -1;
+  for (const re of startPatterns) {
+    const m = text.match(re);
+    if (m && (startIdx === -1 || m.index < startIdx)) startIdx = m.index;
+  }
+  if (startIdx === -1) return { text, extracted: false };
+
+  const sectionText = text.substring(startIdx);
+  const sectionLower = sectionText.toLowerCase();
+
+  // Marcadores de cierre (señalan que la sección de ingredientes terminó)
+  const terminators = [
+    'información nutricional','informacion nutricional',
+    'valor nutricional','valores nutricionales',
+    'nutrition facts','nutrition information',
+    'valor energético','valor energetico','energy value',
+    'energía:','energia:','energy:',
+    'kj/100','kcal/100','kj /100','kcal /100',
+    'por 100 g','por 100g','per 100 g','per 100g',
+    'por 100 ml','por 100ml','per 100ml',
+    'modo de empleo','modo de preparación','modo de preparacion',
+    'instrucciones de uso','instructions for use',
+    'fecha de caducidad','consumir preferentemente','best before','use by',
+    'conservar en','conservar a','conservar entre','almacenar en','mantener en','storage',
+    'peso neto','contenido neto','net weight','volumen neto','cantidad neta',
+    'lote:','lote n','batch n','batch:',
+    'país de origen','pais de origen','país:','pais:','origen:','country of origin',
+    'fabricado por','fabricado en','distribuido por','envasado por','envasado en','producido por','manufactured by',
+    'servicio al consumidor','atención al cliente','atencion al cliente','consumer service',
+    'www.','http://','https://',
+    'teléfono:','telefono:','tel.','tel:','phone:','tlf.','tlf:'
+  ];
+
+  let endIdx = sectionText.length;
+  for (const t of terminators) {
+    const i = sectionLower.indexOf(t);
+    // Mínimo 30 caracteres después del marcador para evitar cortes prematuros por falsos positivos
+    if (i > 30 && i < endIdx) endIdx = i;
+  }
+
+  let result = sectionText.substring(0, endIdx).trim();
+  result = result.replace(/[,;\-\s]+$/, '');
+
+  // Salvaguarda: si quedó muy corto, devuelve el OCR entero (mejor con ruido que vacío)
+  if (result.length < 20) return { text, extracted: false };
+
+  return { text: result, extracted: true };
+}
+
 // Section parsing: extract main ingredients vs. trace declarations
 function parseSections(rawText) {
   const text = (rawText || '').trim();
@@ -2787,9 +2854,15 @@ async function runOCR(dataUrl) {
     });
     ocrProgFill.style.width = '100%';
     setTimeout(() => ocrProgress.classList.remove('show'), 600);
-    ocrText.value = (result.data.text || '').trim();
+    const rawOcr = (result.data.text || '').trim();
+    const { text: cleaned, extracted } = extractIngredientsSection(rawOcr);
+    ocrText.value = cleaned;
     document.getElementById('charCount').textContent = ocrText.value.length + ' caracteres';
-    toast('Texto extraído. Revísalo antes de analizar.', 'ok');
+    if (extracted) {
+      toast('Sección de ingredientes detectada. Revisa por si falta algo.', 'ok');
+    } else {
+      toast('Texto extraído. Revísalo antes de analizar.', 'ok');
+    }
   } catch (err) {
     ocrProgress.classList.remove('show');
     console.error(err);
