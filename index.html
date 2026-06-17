@@ -2857,12 +2857,16 @@ function tokenize(section) {
     .filter(s => s.length > 1 && !/^[\d\s%.,-]+$/.test(s));
 }
 
-// Check if a single ingredient string matches any of the dictionary terms / user-listed term
-function matchAgainst(ingredient, list, useDict = true) {
+// Check if a single ingredient string matches any of the dictionary terms / user-listed term.
+// freedTerms (opcional): items del perfil que coincidan con terminos declarados "libres"
+// en el texto se saltan, para no flaguear lo que la etiqueta dice que NO contiene.
+function matchAgainst(ingredient, list, useDict = true, freedTerms = null) {
   const ing = normalize(ingredient);
   for (const item of list) {
     const target = normalize(item);
     if (!target) continue;
+    // Skip si el item del perfil esta declarado como libre en la etiqueta
+    if (freedTerms && isProfileItemFreed(target, freedTerms)) continue;
     // Direct substring match
     if (ing.includes(target)) return { matched: item, via: 'directo', confidence: 'alta' };
     // Dictionary lookup: if user listed an allergen category by name
@@ -2900,6 +2904,56 @@ function isNegationPhrase(ingredient) {
       || /^sin\s+al[eé]rgenos?(?:\s+declarados?)?$/i.test(n);
 }
 
+// Escanea el texto completo y extrae todos los terminos declarados como "libres"
+// en cualquier parte (no solo al inicio de un token).
+// Ej: "leche sin lactosa" -> {"lactosa"}; "sin gluten y lactosa" -> {"gluten","lactosa"}.
+function extractFreedTerms(rawText) {
+  const freed = new Set();
+  if (!rawText) return freed;
+  const patterns = [
+    /\bsin\s+([^,.;:!?\n]+)/gi,
+    /\bno\s+contiene\s+([^,.;:!?\n]+)/gi,
+    /\blibre\s+de\s+([^,.;:!?\n]+)/gi,
+    /\bexent[oa]\s+de\s+([^,.;:!?\n]+)/gi,
+    /\b0\s*%\s+(?:de\s+)?([^,.;:!?\n]+)/gi
+  ];
+  const stopWords = ['pero','con','mas','aunque','declarados','declarado','declarada','declaradas','anadidos','anadido','agregados','agregado','en','el','la','los','las','de','del'];
+  for (const re of patterns) {
+    let m;
+    while ((m = re.exec(rawText)) !== null) {
+      // Dividir por conjunciones para capturar listas tipo "gluten y lactosa"
+      const parts = m[1].split(/\s+(?:y|e|o|u|ni)\s+/i);
+      for (const part of parts) {
+        const words = part.trim().split(/\s+/).slice(0, 5);
+        const clean = [];
+        for (const w of words) {
+          if (stopWords.includes(w.toLowerCase())) break;
+          clean.push(w);
+        }
+        if (clean.length === 0) continue;
+        const term = clean.join(' ').toLowerCase().trim();
+        if (term.length > 1 && term.length < 40 && term !== 'alergenos' && term !== 'alérgenos') {
+          freed.add(term);
+        }
+      }
+    }
+  }
+  return freed;
+}
+
+// True si el item del perfil (ya normalizado) figura como "libre declarado".
+function isProfileItemFreed(itemNorm, freedTerms) {
+  if (!freedTerms || freedTerms.size === 0) return false;
+  for (const f of freedTerms) {
+    const fN = normalize(f);
+    if (!fN) continue;
+    if (itemNorm === fN) return true;
+    // Inclusión bidireccional: "azucar" libra "azucares anadidos", etc.
+    if (itemNorm.includes(fN) || fN.includes(itemNorm)) return true;
+  }
+  return false;
+}
+
 // Heuristic: is the token ambiguous? (very short, contains generic words like "aroma", "saborizante natural", etc.)
 function ambiguous(ingredient) {
   const ing = normalize(ingredient);
@@ -2911,6 +2965,7 @@ function analyze(text) {
   const { mainText, traceText } = parseSections(text);
   const mainItems  = tokenize(mainText);
   const traceItems = tokenize(traceText);
+  const freedTerms = extractFreedTerms(text);   // libres declarados en la etiqueta
 
   const findings = {
     prohibidoMain:   [],   // hard fails
@@ -2919,7 +2974,8 @@ function analyze(text) {
     prohibidoTrace:  [],   // depends on permitirTrazas
     ambiguous:       [],
     additives:       new Set(),
-    detected:        []    // for display
+    detected:        [],   // for display
+    freedTerms:      freedTerms
   };
 
   // Process main ingredients
@@ -2936,8 +2992,8 @@ function analyze(text) {
     // 1) Check user-allowed first → if explicit user allowed, downgrade
     const permitMatch = matchAgainst(ing, state.profile.permitido, false);
 
-    // 2) Prohibido
-    const profMatch = matchAgainst(ing, state.profile.prohibido, true);
+    // 2) Prohibido (respetando libres declarados)
+    const profMatch = matchAgainst(ing, state.profile.prohibido, true, freedTerms);
     if (profMatch && !permitMatch) {
       findings.prohibidoMain.push({ ingredient: ing, ...profMatch });
       tagged = 'r';
@@ -2945,7 +3001,7 @@ function analyze(text) {
 
     // 3) Solo trazas (aparece como ingrediente principal)
     if (!tagged) {
-      const stMatch = matchAgainst(ing, state.profile.soloTrazas, true);
+      const stMatch = matchAgainst(ing, state.profile.soloTrazas, true, freedTerms);
       if (stMatch && !permitMatch) {
         findings.soloTrazasMain.push({ ingredient: ing, ...stMatch });
         tagged = 'r';
@@ -2954,7 +3010,7 @@ function analyze(text) {
 
     // 4) Limitado
     if (!tagged) {
-      const limMatch = matchAgainst(ing, state.profile.limitado, true);
+      const limMatch = matchAgainst(ing, state.profile.limitado, true, freedTerms);
       if (limMatch) {
         findings.limitadoMain.push({ ingredient: ing, ...limMatch });
         tagged = 'y';
@@ -2980,7 +3036,7 @@ function analyze(text) {
       findings.detected.push({ ing, tag: 'free', traza: true, freeDeclared: true });
       continue;
     }
-    const profMatch = matchAgainst(ing, state.profile.prohibido, true);
+    const profMatch = matchAgainst(ing, state.profile.prohibido, true, freedTerms);
     if (profMatch) findings.prohibidoTrace.push({ ingredient: ing, ...profMatch });
     findings.detected.push({ ing: ing, tag: profMatch ? 'p' : null, traza: true });
   }
@@ -3029,6 +3085,28 @@ function analyze(text) {
 
   // Add additives as extras if any
   if (findings.additives.size) extras.push(`Aditivos detectados: <b>${[...findings.additives].join(', ')}</b>. Revisa si alguno te afecta personalmente.`);
+
+  // Mensaje destacado: la etiqueta declara ausencia de X.
+  // Si esta declaracion ha evitado un flag (es decir, el item esta en el perfil prohibido/limitado/soloTrazas),
+  // se muestra con tono mas afirmativo para que el usuario entienda por que el resultado no se considera ofensivo.
+  if (findings.freedTerms && findings.freedTerms.size) {
+    const allProfile = [
+      ...(state.profile.prohibido || []),
+      ...(state.profile.limitado || []),
+      ...(state.profile.soloTrazas || [])
+    ].map(normalize);
+    const relevantes = [...findings.freedTerms].filter(t => {
+      const tN = normalize(t);
+      return allProfile.some(p => p === tN || p.includes(tN) || tN.includes(p));
+    });
+    const lista = [...findings.freedTerms].slice(0, 8).map(escapeHtml).join(', ');
+    if (relevantes.length) {
+      const rel = relevantes.slice(0, 6).map(escapeHtml).join(', ');
+      extras.unshift(`La etiqueta declara que el producto <b>NO contiene ${rel}</b>, ingredientes de tu perfil restringido. El análisis lo ha tenido en cuenta.`);
+    } else if (findings.freedTerms.size <= 8) {
+      extras.push(`La etiqueta declara estar libre de: <b>${lista}</b>.`);
+    }
+  }
 
   return { verdict, motivos, extras, recomendacion, findings, mainText, traceText };
 }
