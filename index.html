@@ -982,6 +982,7 @@ a { color: inherit; text-decoration: none; }
 .det-ing.match-r { background: var(--bad-bg);  color: #991b1b; border-color: var(--bad-bd); }
 .det-ing.match-y { background: var(--warn-bg); color: #92400e; border-color: var(--warn-bd); }
 .det-ing.match-p { background: #f3eafd; color: #6d28d9; border-color: #e0d0fa; }
+.det-ing.match-free { background: var(--ok-bg); color: var(--brand-700); border-color: var(--ok-bd); }
 .det-ing.match-? { background: var(--ink-100); color: var(--ink-700); }
 .det-ing .dot {
   width: 6px; height: 6px;
@@ -2886,6 +2887,19 @@ function findAdditives(ingredient) {
   return m ? Array.from(new Set(m.map(s => s.replace(/\s+/g,'').toUpperCase()))) : [];
 }
 
+// Detecta frases de negación que declaran ausencia del ingrediente (NO presencia).
+// Ej: "Sin gluten", "No contiene lactosa", "Libre de frutos secos", "0% azúcar".
+// Estas son CLAIMS, no ingredientes — se descartan del análisis para evitar
+// falsos positivos NO APTO cuando justo es lo contrario.
+function isNegationPhrase(ingredient) {
+  if (!ingredient) return false;
+  const n = normalize(ingredient);
+  return /^(sin|no\s+contiene|libre\s+de|exento\s+de|exenta\s+de|0\s*%(?:\s+de)?)\s+/i.test(n)
+      || /\b(gluten|lactose|nut|dairy)[-\s]?free\b/i.test(n)
+      || /^apto\s+(?:para\s+)?cel[ií]acos?\b/i.test(n)
+      || /^sin\s+al[eé]rgenos?(?:\s+declarados?)?$/i.test(n);
+}
+
 // Heuristic: is the token ambiguous? (very short, contains generic words like "aroma", "saborizante natural", etc.)
 function ambiguous(ingredient) {
   const ing = normalize(ingredient);
@@ -2910,6 +2924,13 @@ function analyze(text) {
 
   // Process main ingredients
   for (const ing of mainItems) {
+    // Frases de negación ("Sin gluten", "No contiene lactosa"...) NO son ingredientes.
+    // Se muestran en la lista con un estilo "libre declarado" pero no disparan match.
+    if (isNegationPhrase(ing)) {
+      findings.detected.push({ ing, tag: 'free', freeDeclared: true });
+      continue;
+    }
+
     let tagged = null;
 
     // 1) Check user-allowed first → if explicit user allowed, downgrade
@@ -2955,6 +2976,10 @@ function analyze(text) {
 
   // Process traces
   for (const ing of traceItems) {
+    if (isNegationPhrase(ing)) {
+      findings.detected.push({ ing, tag: 'free', traza: true, freeDeclared: true });
+      continue;
+    }
     const profMatch = matchAgainst(ing, state.profile.prohibido, true);
     if (profMatch) findings.prohibidoTrace.push({ ingredient: ing, ...profMatch });
     findings.detected.push({ ing: ing, tag: profMatch ? 'p' : null, traza: true });
@@ -3197,7 +3222,8 @@ function renderResult() {
   const detHtml = r.result.findings.detected.map(d => {
     const cls = d.tag ? `match-${d.tag}` : '';
     const traza = d.traza ? ' <span style="font-size:10px; opacity:.7">(traza)</span>' : '';
-    return `<span class="det-ing ${cls}"><span class="dot"></span>${escapeHtml(d.ing)}${traza}</span>`;
+    const free  = d.freeDeclared ? ' <span style="font-size:10px; opacity:.7">(libre declarado)</span>' : '';
+    return `<span class="det-ing ${cls}"><span class="dot"></span>${escapeHtml(d.ing)}${traza}${free}</span>`;
   }).join('') || '<span style="font-size:12.5px; color:var(--ink-400)">Sin ingredientes detectados</span>';
 
   document.getElementById('resultShell').innerHTML = `
@@ -3224,6 +3250,7 @@ function renderResult() {
           <div class="legend-item"><span class="swatch" style="background:var(--bad)"></span>Prohibido</div>
           <div class="legend-item"><span class="swatch" style="background:var(--warn)"></span>Limitado</div>
           <div class="legend-item"><span class="swatch" style="background:#8b5cf6"></span>Traza prohibida</div>
+          <div class="legend-item"><span class="swatch" style="background:var(--ok)"></span>Libre declarado</div>
           <div class="legend-item"><span class="swatch" style="background:var(--ink-300)"></span>Ambiguo / Otros</div>
         </div>
       </div>
