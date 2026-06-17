@@ -3089,15 +3089,14 @@ async function runOCR(dataUrl) {
     ocrProgFill.style.width = '100%';
     setTimeout(() => ocrProgress.classList.remove('show'), 600);
     const rawOcr = (result.data.text || '').trim();
-    const { text: cleaned, extracted } = extractIngredientsSection(rawOcr);
+    const { text: cleaned } = extractIngredientsSection(rawOcr);
     ocrText.value = cleaned;
     document.getElementById('charCount').textContent = ocrText.value.length + ' caracteres';
-    if (extracted) {
-      toast('Sección de ingredientes detectada. Revisa por si falta algo.', 'ok');
-    } else {
-      toast('Texto extraído. Revísalo antes de analizar.', 'ok');
-    }
     updateAnalyzeFab();
+    // Auto-analizar inmediatamente: el usuario subio una foto para analizar,
+    // no le pedimos confirmacion extra. Si el OCR no devolvio texto util,
+    // runAnalysis muestra el toast de warning.
+    runAnalysis();
   } catch (err) {
     ocrProgress.classList.remove('show');
     console.error(err);
